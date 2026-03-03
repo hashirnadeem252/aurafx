@@ -1,0 +1,635 @@
+import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import Api from '../services/Api';
+import { jwtDecode } from 'jwt-decode';
+import { consumePostAuthRedirect } from '../utils/postAuthRedirect';
+
+// Create the context
+const AuthContext = createContext(null);
+
+// Custom hook for using the auth context
+export const useAuth = () => useContext(AuthContext);
+
+export const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [mfaVerified, setMfaVerified] = useState(false);
+  const [token, setToken] = useState(() => localStorage.getItem('token'));
+  const navigate = useNavigate();
+
+  const applyPostAuthRedirect = useCallback(() => {
+    const redirectInfo = consumePostAuthRedirect();
+    if (!redirectInfo || !redirectInfo.next) {
+      return null;
+    }
+
+    const nextPath = redirectInfo.next.startsWith('/') ? redirectInfo.next : `/${redirectInfo.next}`;
+    navigate(nextPath, { replace: true });
+    return redirectInfo;
+  }, [navigate]);
+
+  const clearSession = useCallback(() => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('mfaVerified');
+    localStorage.removeItem('mfaEmail');
+    localStorage.removeItem('user');
+    localStorage.removeItem('hasActiveSubscription');
+    localStorage.removeItem('pendingSubscription');
+    localStorage.removeItem('subscriptionSkipped');
+    setToken(null);
+  }, []);
+
+  const persistTokens = useCallback((nextToken, refreshToken) => {
+    if (nextToken) {
+      localStorage.setItem('token', nextToken);
+      setToken(nextToken);
+    } else {
+      localStorage.removeItem('token');
+      setToken(null);
+    }
+
+    if (refreshToken) {
+      localStorage.setItem('refreshToken', refreshToken);
+    }
+  }, []);
+
+  const resolveUserInfo = (data = {}) => {
+    const email = (data.email || '').toLowerCase();
+    let finalRole = (data.role || 'USER').toString().toUpperCase();
+    if (finalRole === 'SUPERADMIN') finalRole = 'SUPER_ADMIN';
+    if (email === 'shubzfx@gmail.com') finalRole = 'SUPER_ADMIN';
+    return {
+      id: data.id || data.userId || data.sub || null,
+      username: data.username || data.name || '',
+      email: data.email || '',
+      name: data.name || data.username || '',
+      avatar: data.avatar || null,
+      phone: data.phone || '',
+      address: data.address || '',
+      role: finalRole,
+      capabilities: data.capabilities || [],
+      mfaVerified: data.mfaVerified || false,
+      timezone: data.timezone ?? null
+    };
+  };
+
+  const persistUser = useCallback((userInfo) => {
+    const fullUser = resolveUserInfo(userInfo);
+    const safeUser = {
+      id: fullUser.id,
+      username: fullUser.username,
+      email: fullUser.email,
+      name: fullUser.name,
+      avatar: fullUser.avatar,
+      role: fullUser.role,
+      mfaVerified: fullUser.mfaVerified,
+      level: fullUser.level != null ? fullUser.level : undefined,
+      xp: fullUser.xp != null ? fullUser.xp : undefined,
+      timezone: fullUser.timezone ?? undefined
+    };
+    try {
+      // Merge with existing user so we preserve level/xp (and other fields) set by Community/Profile
+      const existing = JSON.parse(localStorage.getItem('user') || '{}');
+      const merged = { ...existing, ...safeUser };
+      if (merged.level === undefined && existing.level != null) merged.level = existing.level;
+      if (merged.xp === undefined && existing.xp != null) merged.xp = existing.xp;
+      localStorage.setItem('user', JSON.stringify(merged));
+    } catch (e) {
+      if (e.name === 'QuotaExceededError' || e.code === 22) {
+        try {
+          localStorage.removeItem('user');
+          localStorage.setItem('user', JSON.stringify({ id: fullUser.id, email: fullUser.email, role: fullUser.role }));
+        } catch (_) {
+          // Minimal fallback failed; still set in-memory user so login succeeds
+        }
+      }
+    }
+    setUser(fullUser);
+    return fullUser;
+  }, []);
+
+  // Check if user has a verified session in localStorage
+  useEffect(() => {
+    const mfaVerifiedStatus = localStorage.getItem('mfaVerified');
+    if (mfaVerifiedStatus === 'true') {
+      setMfaVerified(true);
+    }
+  }, []);
+
+  // Logout function defined using useCallback
+  const logout = useCallback(() => {
+    clearSession();
+    setUser(null);
+    setMfaVerified(false);
+    navigate('/login');
+  }, [clearSession, navigate]);
+
+  // Check if token exists and is valid on app load
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        setLoading(true);
+        const token = localStorage.getItem('token');
+        
+        if (!token) {
+          setUser(null);
+          setLoading(false);
+          return;
+        }
+        
+        // Check if token is expired
+        try {
+          const decodedToken = jwtDecode(token);
+          const currentTime = Date.now() / 1000;
+          
+          if (decodedToken.exp < currentTime) {
+            logout();
+            setLoading(false);
+            return;
+          }
+          
+          // Verify user still exists in database (account might have been deleted)
+          // Do this asynchronously and non-blocking to avoid blocking app load
+          const userId = decodedToken.id || decodedToken.userId || decodedToken.sub;
+          if (userId) {
+            // Run verification in background - don't block app loading
+            setTimeout(async () => {
+              try {
+                const API_BASE_URL = process.env.REACT_APP_API_URL || window.location.origin;
+                const verifyResponse = await fetch(`${API_BASE_URL}/api/users/${userId}`, {
+                  method: 'GET',
+                  headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                  },
+                  signal: AbortSignal.timeout(5000) // 5 second timeout
+                });
+                
+                // Only logout on 404 (user not found), not on 500 (server error)
+                if (verifyResponse.status === 404) {
+                  // User doesn't exist - account was deleted
+                  console.warn('User account not found - logging out');
+                  logout();
+                } else if (verifyResponse.status === 500) {
+                  // Server error - don't logout, just log warning
+                  console.warn('Server error verifying user - keeping session active');
+                } else if (!verifyResponse.ok) {
+                  // Other errors - log but don't logout
+                  console.warn('Error verifying user:', verifyResponse.status);
+                }
+              } catch (verifyError) {
+                // If verification fails, don't block - just log warning
+                // Network errors or timeouts shouldn't prevent app from loading
+                // Suppress timeout errors as they're expected and non-critical
+                const isTimeoutError = verifyError.name === 'AbortError' || 
+                                      verifyError.name === 'TimeoutError' ||
+                                      verifyError.message?.toLowerCase().includes('timeout') ||
+                                      verifyError.message?.toLowerCase().includes('timed out');
+                
+                if (!isTimeoutError) {
+                  console.warn('Could not verify user existence:', verifyError);
+                }
+                // Timeout errors are silently ignored - they're expected on slow connections
+              }
+            }, 100); // Small delay to let app load first
+          }
+          
+          // Token is valid, get minimal user info from token
+          // No API call for now to avoid errors
+          // userId already declared above, reuse it
+          const userData = persistUser({
+            id: userId,
+            email: decodedToken.email || '',
+            role: decodedToken.role || 'USER'
+          });
+          
+          if (userData.role === 'ADMIN') {
+            localStorage.setItem('mfaVerified', 'true');
+            setMfaVerified(true);
+          }
+          
+          // Check daily login streak (non-blocking, runs in background)
+          // This runs every time the app loads to check if user logged in today
+          // IMPORTANT: Only check once per day to prevent duplicate XP awards
+          if (userId) {
+            // Check if we already checked today (prevent duplicate calls)
+            const lastCheckKey = `daily_login_check_${userId}`;
+            const lastCheckDate = localStorage.getItem(lastCheckKey);
+            const today = new Date().toDateString();
+            
+            // Also check if there's an in-progress call to prevent race conditions
+            const inProgressKey = `daily_login_in_progress_${userId}`;
+            const isInProgress = localStorage.getItem(inProgressKey) === 'true';
+            
+            // Only check if we haven't checked today AND no call is in progress
+            if (lastCheckDate !== today && !isInProgress) {
+              // Mark that we're checking NOW (before API call) to prevent race conditions
+              localStorage.setItem(lastCheckKey, today);
+              localStorage.setItem(inProgressKey, 'true');
+              
+              setTimeout(async () => {
+                try {
+                  const loginResponse = await Api.checkDailyLogin(userId);
+                  
+                  // Clear in-progress flag
+                  localStorage.removeItem(inProgressKey);
+                  
+                  if (loginResponse.data && loginResponse.data.success) {
+                    const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+                    
+                    // CRITICAL: Check alreadyLoggedIn FIRST - if true, NEVER update XP/level
+                    // This is the most important check to prevent duplicate XP awards
+                    if (loginResponse.data.alreadyLoggedIn === true) {
+                      // Already logged in today - DO NOT update XP/level, only update streak display
+                      const updatedUser = {
+                        ...currentUser,
+                        login_streak: loginResponse.data.streak || currentUser.login_streak || 0
+                        // DO NOT update xp or level - keep existing values
+                      };
+                      persistUser(updatedUser);
+                    } else if (loginResponse.data.xpAwarded && 
+                        loginResponse.data.xpAwarded > 0 && 
+                        loginResponse.data.alreadyLoggedIn !== true) {
+                      // XP was awarded - update user data
+                      const updatedUser = {
+                        ...currentUser,
+                        xp: loginResponse.data.newXP,
+                        level: loginResponse.data.newLevel,
+                        login_streak: loginResponse.data.streak || 0
+                      };
+                      persistUser(updatedUser);
+                      console.log(`🔥 Daily login: ${loginResponse.data.streak} day streak! +${loginResponse.data.xpAwarded} XP`);
+                    } else {
+                      // No XP awarded but success - just update streak
+                      const updatedUser = {
+                        ...currentUser,
+                        login_streak: loginResponse.data.streak || currentUser.login_streak || 0
+                      };
+                      persistUser(updatedUser);
+                    }
+                  }
+                } catch (error) {
+                  // Clear in-progress flag on error
+                  localStorage.removeItem(inProgressKey);
+                  
+                  // On error, remove the check flag so we can retry (but only after 1 hour)
+                  // This prevents infinite retries but allows recovery from temporary errors
+                  const errorRetryKey = `daily_login_error_${userId}`;
+                  const lastErrorTime = localStorage.getItem(errorRetryKey);
+                  const now = Date.now();
+                  
+                  if (!lastErrorTime || (now - parseInt(lastErrorTime)) > 3600000) { // 1 hour
+                    localStorage.removeItem(lastCheckKey); // Allow retry after 1 hour
+                    localStorage.setItem(errorRetryKey, now.toString());
+                  }
+                  
+                  // Silently fail - don't block app loading
+                  // Only log if it's not a timeout (to reduce console noise)
+                  if (!error.message || (!error.message.includes('timeout') && !error.message.includes('Timeout') && !error.message.includes('504'))) {
+                    console.error('Daily login check failed:', error);
+                  }
+                }
+              }, 500); // Small delay to let app load first
+            } else if (isInProgress) {
+              // Another call is in progress, wait a bit and check again
+              setTimeout(() => {
+                const stillInProgress = localStorage.getItem(inProgressKey) === 'true';
+                if (stillInProgress) {
+                  // If still in progress after 5 seconds, clear it (stuck call)
+                  localStorage.removeItem(inProgressKey);
+                }
+              }, 5000);
+            }
+          }
+          
+          setLoading(false);
+        } catch (tokenError) {
+          console.error('Token decode error:', tokenError);
+          logout();
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error('Auth check failed:', error);
+        setError(error.message || 'Authentication failed');
+        logout();
+        setLoading(false);
+      }
+    };
+    
+    checkAuth();
+  }, [logout, persistUser]);
+
+  // Login function - supports both email/password login and token-based login from MFA
+  const login = async (emailOrToken, passwordOrRole, userData = null) => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Check which login method is being used
+      if (userData) {
+        const token = emailOrToken;
+        const role = passwordOrRole;
+
+        persistTokens(token, localStorage.getItem('refreshToken'));
+        localStorage.setItem('mfaVerified', 'true');
+        setMfaVerified(true);
+        return persistUser({ ...userData, role });
+      } else {
+        // This is an email/password login
+        const email = emailOrToken;
+        const password = passwordOrRole;
+        
+        // Auto-detect IANA timezone for daily journal notifications (08:00 local)
+        let timezone = '';
+        try {
+          timezone = (typeof Intl !== 'undefined' && Intl.DateTimeFormat && Intl.DateTimeFormat().resolvedOptions) ? Intl.DateTimeFormat().resolvedOptions().timeZone : '';
+        } catch (_) {}
+        const response = await Api.login({ email, password, timezone });
+        const data = response.data || {};
+        
+        // Check if login was successful - must have a token and success flag
+        if (!data.token || data.success === false) {
+          // If we have an error message, use it
+          if (data.message) {
+            throw new Error(data.message);
+          }
+          throw new Error('Login failed: No token received from server');
+        }
+        
+        if (data.status === "MFA_REQUIRED" && !data.mfaVerified) {
+          // Redirect to MFA verification
+          localStorage.setItem('mfaEmail', email);
+          
+          // Navigate programmatically to the MFA verification page
+          // with proper state data that won't be lost in browser history
+          navigate('/verify-mfa', {
+            state: {
+              userId: data.id,
+              email: email,
+              requiresVerification: true,
+              userData: data,
+              returnUrl: '/community'
+            },
+            replace: true  // Replace the history entry so back button works properly
+          });
+          
+          // Return early to prevent further processing
+          setLoading(false);
+          return data;
+        }
+        
+        // Only proceed if we have a valid token
+        if (!data.token) {
+          throw new Error('Login failed: Invalid response from server');
+        }
+        
+        persistTokens(data.token, data.refreshToken);
+        persistUser(data);
+        
+        if (data.role === 'ADMIN') {
+          localStorage.setItem('mfaVerified', 'true');
+          setMfaVerified(true);
+        }
+        
+        // Check and award daily login streak XP (non-blocking)
+        // IMPORTANT: Only award XP once per day, not on every login
+        if (data.id || data.userId) {
+          const userId = data.id || data.userId;
+          const lastCheckKey = `daily_login_check_${userId}`;
+          const lastCheckDate = localStorage.getItem(lastCheckKey);
+          const today = new Date().toDateString();
+          const inProgressKey = `daily_login_in_progress_${userId}`;
+          const isInProgress = localStorage.getItem(inProgressKey) === 'true';
+          
+          // Only check if we haven't checked today AND no call is in progress
+          if (lastCheckDate !== today && !isInProgress) {
+            // Set flag BEFORE API call to prevent race conditions
+            localStorage.setItem(lastCheckKey, today);
+            localStorage.setItem(inProgressKey, 'true');
+            
+            Api.checkDailyLogin(userId)
+              .then((loginResponse) => {
+                // Clear in-progress flag
+                localStorage.removeItem(inProgressKey);
+                
+                if (loginResponse.data && loginResponse.data.success) {
+                  // CRITICAL: Check alreadyLoggedIn FIRST - if true, NEVER update XP/level
+                  if (loginResponse.data.alreadyLoggedIn === true) {
+                    // Already logged in today - DO NOT update XP/level, only update streak
+                    const updatedUser = {
+                      ...data,
+                      login_streak: loginResponse.data.streak || data.login_streak || 0
+                      // DO NOT update xp or level
+                    };
+                    persistUser(updatedUser);
+                  } else if (loginResponse.data.xpAwarded && 
+                      loginResponse.data.xpAwarded > 0 && 
+                      loginResponse.data.alreadyLoggedIn !== true) {
+                    // XP was awarded - update user data
+                    const updatedUser = {
+                      ...data,
+                      xp: loginResponse.data.newXP,
+                      level: loginResponse.data.newLevel,
+                      login_streak: loginResponse.data.streak || 0
+                    };
+                    persistUser(updatedUser);
+                    console.log(`🔥 Daily login: ${loginResponse.data.streak} day streak! +${loginResponse.data.xpAwarded} XP`);
+                  } else {
+                    // No XP awarded - just update streak
+                    const updatedUser = {
+                      ...data,
+                      login_streak: loginResponse.data.streak || data.login_streak || 0
+                    };
+                    persistUser(updatedUser);
+                  }
+                }
+              })
+              .catch((error) => {
+                // Clear in-progress flag on error
+                localStorage.removeItem(inProgressKey);
+                
+                // On error, remove check flag to allow retry (but only after delay)
+                const errorRetryKey = `daily_login_error_${userId}`;
+                const lastErrorTime = localStorage.getItem(errorRetryKey);
+                const now = Date.now();
+                
+                if (!lastErrorTime || (now - parseInt(lastErrorTime)) > 3600000) { // 1 hour
+                  localStorage.removeItem(lastCheckKey);
+                  localStorage.setItem(errorRetryKey, now.toString());
+                }
+                
+                // Don't block login if daily login check fails
+                if (!error.message || (!error.message.includes('timeout') && !error.message.includes('Timeout') && !error.message.includes('504'))) {
+                  console.error('Error checking daily login:', error);
+                }
+              });
+          }
+        }
+        
+        // ============= SINGLE SOURCE OF TRUTH: /api/me =============
+        // Use /api/me entitlements for redirect (same as RouteGuards and Community)
+        let canAccessCommunity = false;
+        try {
+          const API_BASE_URL = process.env.REACT_APP_API_URL || window.location.origin;
+          const meResponse = await fetch(`${API_BASE_URL}/api/me`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${data.token}`,
+              'Content-Type': 'application/json'
+            },
+            cache: 'no-store'
+          });
+          if (meResponse.ok) {
+            const meData = await meResponse.json();
+            if (meData.success && meData.entitlements) {
+              canAccessCommunity = meData.entitlements.canAccessCommunity === true;
+              if (canAccessCommunity) {
+                localStorage.setItem('hasActiveSubscription', 'true');
+              } else {
+                localStorage.removeItem('hasActiveSubscription');
+                localStorage.removeItem('accessType');
+              }
+            }
+          }
+        } catch (meError) {
+          console.error('Error fetching /api/me on login:', meError);
+        }
+        
+        // ============= DETERMINISTIC ROUTING =============
+        // canAccessCommunity === true → /community (plan selected or admin)
+        // canAccessCommunity === false → /choose-plan (select Free/Premium/Elite)
+        const redirectInfo = applyPostAuthRedirect();
+        if (redirectInfo) {
+          return data;
+        }
+
+        if (canAccessCommunity) {
+          console.log('✅ Community access granted - redirecting to /community');
+          navigate('/community');
+        } else {
+          console.log('No plan selected - redirecting to /choose-plan');
+          navigate('/choose-plan');
+        }
+        
+        return data;
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+
+      let friendlyMessage = '';
+
+      if (error.response) {
+        const status = error.response.status;
+        const serverMessage = error.response.data?.message || error.response.data?.error;
+
+        if (status === 401) {
+          friendlyMessage = serverMessage || 'Incorrect password. Please try again or reset your password.';
+        } else if (status === 404) {
+          friendlyMessage = serverMessage || 'No account with this email exists. Please sign up for a new account.';
+        } else {
+          friendlyMessage = serverMessage || Api.handleApiError(error);
+        }
+      } else if (error.message && error.message.toLowerCase().includes('invalid email or password')) {
+        friendlyMessage = 'No account with this email exists or the password is incorrect.';
+      } else {
+        friendlyMessage = Api.handleApiError(error);
+      }
+
+      setError(friendlyMessage);
+
+      // Preserve the original error response so Login.js can access status codes
+      const wrappedError = new Error(friendlyMessage);
+      if (error.response) {
+        wrappedError.response = { ...error.response };
+        const data = error.response.data;
+        // If response body is HTML (e.g. 404 page), don't mutate it; use a plain object
+        if (data != null && typeof data === 'object' && !Array.isArray(data)) {
+          wrappedError.response.data = {
+            ...data,
+            message: data.message || friendlyMessage
+          };
+        } else {
+          wrappedError.response.data = { message: friendlyMessage };
+        }
+      }
+      throw wrappedError;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Register function
+  const register = async (userData) => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await Api.register(userData);
+      const data = response.data;
+      
+      if (data.status === "MFA_REQUIRED") {
+        navigate('/verify-mfa', {
+          state: {
+            userId: data.id,
+            email: userData.email,
+            requiresVerification: true,
+            userData: data
+          }
+        });
+        return;
+      }
+      
+      persistTokens(data.token, data.refreshToken);
+      const userInfo = persistUser(data);
+      
+      if (userInfo.role === 'ADMIN') {
+        localStorage.setItem('mfaVerified', 'true');
+        setMfaVerified(true);
+      }
+      
+      if (localStorage.getItem('newSignup') === 'true') {
+        localStorage.setItem('pendingSubscription', 'true');
+        localStorage.removeItem('newSignup');
+        const redirectInfo = applyPostAuthRedirect();
+        if (!redirectInfo) {
+          navigate('/choose-plan');
+        }
+        return data;
+      }
+      
+      localStorage.removeItem('newSignup');
+      applyPostAuthRedirect();
+      return data;
+    } catch (error) {
+      console.error('Registration error:', error);
+      setError(Api.handleApiError(error));
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Verify MFA function
+  const verifyMfa = () => {
+    localStorage.setItem('mfaVerified', 'true');
+    setMfaVerified(true);
+  };
+
+  // Context value
+  const value = {
+    user,
+    loading,
+    error,
+    token,
+    isAuthenticated: !!user,
+    login,
+    logout,
+    register,
+    mfaVerified,
+    verifyMfa
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+};

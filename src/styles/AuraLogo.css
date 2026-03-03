@@ -1,0 +1,220 @@
+.aura-logo-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    z-index: 10;
+}
+
+.aura-logo-symbol {
+    position: relative;
+    width: 180px;
+    height: 180px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.logo-left,
+.logo-right {
+    position: absolute;
+    width: 50%;
+    height: 100%;
+}
+
+.logo-left {
+    left: 0;
+}
+
+.logo-right {
+    right: 0;
+}
+
+.logo-diagonal,
+.logo-horizontal {
+    position: absolute;
+    background: #ffffff;
+    box-shadow: 
+        0 0 5px rgba(255, 255, 255, 0.5),
+        0 0 10px rgba(255, 255, 255, 0.3),
+        0 0 15px rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+/* Left side - Inverted V (A shape) */
+.logo-diagonal-1 {
+    width: 12px;
+    height: 70px;
+    top: 20px;
+    right: 30px;
+    transform: rotate(-28deg);
+    transform-origin: bottom right;
+}
+
+.logo-diagonal-2 {
+    width: 12px;
+    height: 70px;
+    top: 20px;
+    right: 30px;
+    transform: rotate(28deg);
+    transform-origin: bottom left;
+}
+
+.logo-horizontal-1 {
+    width: 45px;
+    height: 12px;
+    top: 65px;
+    right: 30px;
+}
+
+/* Right side - V shape */
+.logo-diagonal-3 {
+    width: 12px;
+    height: 70px;
+    bottom: 20px;
+    left: 30px;
+    transform: rotate(28deg);
+    transform-origin: top left;
+}
+
+.logo-diagonal-4 {
+    width: 12px;
+    height: 70px;
+    bottom: 20px;
+    left: 30px;
+    transform: rotate(-28deg);
+    transform-origin: top right;
+}
+
+.logo-horizontal-2 {
+    width: 45px;
+    height: 12px;
+    bottom: 65px;
+    left: 30px;
+}
+
+/* Navbar Logo Size */
+.navbar-logo-wrapper .aura-logo-symbol {
+    width: 35px;
+    height: 35px;
+}
+
+.navbar-logo-wrapper .logo-diagonal {
+    width: 3px;
+    height: 15px;
+}
+
+.navbar-logo-wrapper .logo-horizontal {
+    width: 12px;
+    height: 3px;
+}
+
+.navbar-logo-wrapper .logo-diagonal-1 {
+    top: 5px;
+    right: 8px;
+}
+
+.navbar-logo-wrapper .logo-diagonal-2 {
+    top: 5px;
+    right: 8px;
+}
+
+.navbar-logo-wrapper .logo-horizontal-1 {
+    top: 17px;
+    right: 8px;
+}
+
+.navbar-logo-wrapper .logo-diagonal-3 {
+    bottom: 5px;
+    left: 8px;
+}
+
+.navbar-logo-wrapper .logo-diagonal-4 {
+    bottom: 5px;
+    left: 8px;
+}
+
+.navbar-logo-wrapper .logo-horizontal-2 {
+    bottom: 17px;
+    left: 8px;
+}
+
+/* Tablet Navbar Logo */
+@media (max-width: 1024px) and (min-width: 769px) {
+    .navbar-logo-wrapper .aura-logo-symbol {
+        width: 32px;
+        height: 32px;
+    }
+}
+
+/* Mobile Navbar Logo */
+@media (max-width: 768px) {
+    .navbar-logo-wrapper .aura-logo-symbol {
+        width: 28px;
+        height: 28px;
+    }
+    
+    .navbar-logo-wrapper .logo-diagonal {
+        width: 2.5px;
+        height: 12px;
+    }
+    
+    .navbar-logo-wrapper .logo-horizontal {
+        width: 10px;
+        height: 2.5px;
+    }
+}
+
+/* Small Mobile Navbar Logo */
+@media (max-width: 480px) {
+    .navbar-logo-wrapper .aura-logo-symbol {
+        width: 24px;
+        height: 24px;
+    }
+    
+    .navbar-logo-wrapper .logo-diagonal {
+        width: 2px;
+        height: 10px;
+    }
+    
+    .navbar-logo-wrapper .logo-horizontal {
+        width: 8px;
+        height: 2px;
+    }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .aura-logo-symbol {
+        width: 140px;
+        height: 140px;
+    }
+    
+    .logo-diagonal {
+        width: 10px;
+        height: 55px;
+    }
+    
+    .logo-horizontal {
+        width: 35px;
+        height: 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    .aura-logo-symbol {
+        width: 120px;
+        height: 120px;
+    }
+    
+    .logo-diagonal {
+        width: 8px;
+        height: 45px;
+    }
+    
+    .logo-horizontal {
+        width: 30px;
+        height: 8px;
+    }
+}

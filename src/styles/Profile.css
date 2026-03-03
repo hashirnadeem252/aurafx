@@ -1,0 +1,1040 @@
+/* Premium Gamified Profile Page Styles */
+
+.profile-container {
+    min-height: 100vh;
+    width: 100%;
+    position: relative;
+    background: #0a0a0a;
+    padding: 85px 15px 30px;
+    font-family: 'Space Grotesk', sans-serif;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* All text and titles in Space Grotesk (match navbar AURA FX); titles in all caps */
+.profile-container,
+.profile-container * {
+    font-family: 'Space Grotesk', sans-serif;
+}
+
+.profile-content {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    z-index: 1;
+    position: relative;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+/* Loading Screen */
+.loading-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 80vh;
+    gap: 20px;
+}
+
+.loading-spinner {
+    width: 50px;
+    height: 50px;
+    border: 4px solid rgba(139, 92, 246, 0.2);
+    border-top-color: #8B5CF6;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.loading-text {
+    color: #C4B5FD;
+    font-size: 1.2rem;
+    font-weight: 600;
+    font-family: 'Space Grotesk', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+}
+
+/* Profile Banner */
+.profile-banner-container {
+    position: relative;
+    width: 100%;
+    height: 180px;
+    border-radius: 15px;
+    overflow: hidden;
+    margin-bottom: -60px;
+    z-index: 2;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+
+.profile-banner {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+    image-rendering: high-quality;
+}
+
+.profile-banner-placeholder {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.3) 0%, rgba(167, 139, 250, 0.2) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.banner-upload-hint {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.9rem;
+    font-family: 'Space Grotesk', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+.banner-upload-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(0, 0, 0, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1.2rem;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+}
+
+.banner-upload-btn:hover {
+    background: rgba(0, 0, 0, 0.8);
+    border-color: rgba(255, 255, 255, 0.5);
+    transform: scale(1.1);
+}
+
+/* Profile Header Section */
+.profile-header-section {
+    display: flex;
+    align-items: flex-end;
+    gap: 20px;
+    padding: 70px 30px 25px;
+    background: linear-gradient(135deg, rgba(30, 30, 46, 0.95) 0%, rgba(20, 20, 35, 0.98) 100%);
+    backdrop-filter: blur(20px);
+    border-radius: 15px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    margin-bottom: 20px;
+    position: relative;
+}
+
+.profile-avatar-wrapper {
+    position: relative;
+    flex-shrink: 0;
+    width: 150px;
+    min-height: 150px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.profile-avatar-wrapper .profile-avatar,
+.profile-avatar-wrapper .profile-avatar-img {
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 5px solid rgba(139, 92, 246, 0.5);
+    box-shadow: 0 0 30px rgba(139, 92, 246, 0.6), 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+
+.profile-avatar-color-picker {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+}
+
+.profile-avatar-color-label {
+    font-size: 0.7rem;
+    color: rgba(255, 255, 255, 0.6);
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    font-family: 'Space Grotesk', sans-serif;
+}
+
+.profile-avatar-color-swatches {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: center;
+    max-width: 180px;
+}
+
+.profile-avatar-swatch {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    cursor: pointer;
+    padding: 0;
+    transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.profile-avatar-swatch:hover {
+    transform: scale(1.15);
+    box-shadow: 0 0 12px rgba(255, 255, 255, 0.4);
+}
+
+.profile-avatar {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+    object-position: center;
+    border-radius: 50%;
+    background: #1a1a2e;
+}
+
+.avatar-upload-btn {
+    position: absolute;
+    bottom: -2px;
+    right: -2px;
+    z-index: 2;
+    background: rgba(139, 92, 246, 0.95);
+    border: 2px solid rgba(30, 30, 46, 0.95);
+    color: white;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+}
+
+.avatar-upload-btn:hover {
+    transform: scale(1.1);
+    background: rgba(167, 139, 250, 0.9);
+    box-shadow: 0 6px 20px rgba(139, 92, 246, 0.7);
+}
+
+.profile-header-info {
+    flex: 1;
+    padding-bottom: 5px;
+}
+
+.profile-username {
+    font-size: 2rem;
+    font-weight: 200;
+    color: white;
+    margin: 0 0 8px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.25em;
+    text-shadow: 0 0 20px rgba(139, 92, 246, 0.5);
+    font-family: 'Space Grotesk', sans-serif;
+}
+
+.profile-rank {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 4px;
+    text-shadow: 0 0 10px currentColor;
+    font-family: 'Space Grotesk', sans-serif;
+}
+
+.profile-tier {
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.6);
+    text-transform: uppercase;
+    font-family: 'Space Grotesk', sans-serif;
+    letter-spacing: 0.15em;
+}
+
+/* Level & XP Section */
+.profile-level-section {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+    padding: 20px 25px;
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(167, 139, 250, 0.1) 100%);
+    border-radius: 12px;
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+.level-display, .xp-display {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.level-label, .xp-label {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.6);
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    font-family: 'Space Grotesk', sans-serif;
+}
+
+.level-value {
+    font-size: 2.5rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #8B5CF6 0%, #A78BFA 50%, #C4B5FD 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1;
+}
+
+.xp-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: #C4B5FD;
+    line-height: 1;
+}
+
+.next-milestone {
+    margin-left: auto;
+    text-align: right;
+}
+
+.milestone-label {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.6);
+    display: block;
+    margin-bottom: 5px;
+    font-family: 'Space Grotesk', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+}
+
+.milestone-value {
+    font-size: 1rem;
+    color: #A78BFA;
+    font-weight: 600;
+}
+
+/* XP Progress Bar */
+.xp-progress-container {
+    background: rgba(20, 20, 35, 0.8);
+    border-radius: 15px;
+    padding: 20px;
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    margin-bottom: 20px;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+.xp-progress-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.8);
+    font-weight: 600;
+    font-family: 'Space Grotesk', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+.xp-progress-bar {
+    width: 100%;
+    height: 20px;
+    background: rgba(30, 30, 46, 0.8);
+    border-radius: 10px;
+    overflow: hidden;
+    position: relative;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.xp-progress-fill {
+    height: 100%;
+    border-radius: 10px;
+    transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 0 20px rgba(139, 92, 246, 0.6);
+}
+
+.xp-progress-fill::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+.xp-progress-text {
+    margin-top: 10px;
+    text-align: center;
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+/* Login Streak */
+.login-streak-section {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 15px;
+    background: linear-gradient(135deg, rgba(255, 107, 107, 0.15) 0%, rgba(255, 159, 64, 0.1) 100%);
+    border-radius: 12px;
+    border: 1px solid rgba(255, 107, 107, 0.3);
+    margin-bottom: 15px;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+.streak-icon {
+    font-size: 2.5rem;
+}
+
+.streak-info {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.streak-label {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.6);
+    text-transform: uppercase;
+    font-family: 'Space Grotesk', sans-serif;
+    letter-spacing: 0.15em;
+}
+
+.streak-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #FF6B6B;
+}
+
+/* Journal summary card – below login streak */
+.profile-journal-summary-card {
+    background: linear-gradient(160deg, rgba(30, 30, 46, 0.95) 0%, rgba(22, 22, 38, 0.98) 100%);
+    border: 1px solid rgba(139, 92, 246, 0.25);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 20px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 0 40px rgba(139, 92, 246, 0.06);
+}
+
+.profile-journal-summary-card .section-title {
+    margin-bottom: 20px;
+}
+
+/* Profile Tabs */
+.profile-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+    border-bottom: 2px solid rgba(139, 92, 246, 0.3);
+    padding-bottom: 8px;
+    overflow-x: auto;
+}
+
+.tab-btn {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.6);
+    padding: 10px 20px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    border-radius: 8px 8px 0 0;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    white-space: nowrap;
+    position: relative;
+    font-family: 'Space Grotesk', sans-serif;
+}
+
+.tab-btn:hover {
+    color: rgba(255, 255, 255, 0.9);
+    background: rgba(139, 92, 246, 0.1);
+}
+
+.tab-btn.active {
+    color: #C4B5FD;
+    background: rgba(139, 92, 246, 0.2);
+}
+
+.tab-btn.active::after {
+    content: '';
+    position: absolute;
+    bottom: -12px;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #8B5CF6 0%, #A78BFA 100%);
+    border-radius: 2px 2px 0 0;
+}
+
+/* Tab Content */
+.profile-tab-content {
+    background: linear-gradient(135deg, rgba(30, 30, 46, 0.95) 0%, rgba(20, 20, 35, 0.98) 100%);
+    backdrop-filter: blur(20px);
+    border-radius: 15px;
+    padding: 25px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    min-height: 300px;
+    box-sizing: border-box;
+    overflow-x: hidden;
+    width: 100%;
+}
+
+.tab-panel {
+    min-width: 0;
+    overflow-x: hidden;
+}
+
+.section-title {
+    font-size: 1.3rem;
+    font-weight: 200;
+    color: #C4B5FD;
+    margin-bottom: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    min-width: 0;
+    font-family: 'Space Grotesk', sans-serif;
+}
+
+/* Form Groups */
+.form-group {
+    margin-bottom: 25px;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.form-group label {
+    display: block;
+    color: rgba(255, 255, 255, 0.8);
+    margin-bottom: 6px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    font-family: 'Space Grotesk', sans-serif;
+}
+
+.form-input {
+    width: 100%;
+    min-width: 0;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    padding: 15px 20px;
+    color: var(--text);
+    font-size: 0.95rem;
+    font-weight: 300;
+    letter-spacing: 0.04em;
+    transition: all var(--transition);
+    backdrop-filter: blur(8px);
+    box-sizing: border-box;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.3), inset 0 0 0 1px rgba(255,255,255,0.02);
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: rgba(139, 92, 246, 0.6);
+    box-shadow: 0 0 15px rgba(139, 92, 246, 0.3);
+    background: rgba(25, 25, 40, 0.9);
+}
+
+.form-input::placeholder {
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.error-message {
+    color: #FF6B6B;
+    font-size: 0.85rem;
+    margin-top: 5px;
+}
+
+.role-display {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 15px;
+    background: rgba(34, 197, 94, 0.15);
+    border: 1px solid rgba(34, 197, 94, 0.3);
+    border-radius: 10px;
+    margin-bottom: 20px;
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+.role-label {
+    color: rgba(255, 255, 255, 0.8);
+    font-weight: 600;
+    font-family: 'Space Grotesk', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+.role-value {
+    color: #4ADE80;
+    font-weight: 700;
+    text-transform: uppercase;
+    font-family: 'Space Grotesk', sans-serif;
+    letter-spacing: 0.1em;
+}
+
+.save-button {
+    background: linear-gradient(135deg, #8B5CF6 0%, #A78BFA 50%, #C4B5FD 100%);
+    color: white;
+    border: none;
+    padding: 14px 32px;
+    border-radius: 12px;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    box-shadow: 0 4px 20px rgba(139, 92, 246, 0.4);
+    width: 100%;
+    max-width: 300px;
+    margin: 20px auto 0;
+    display: block;
+    box-sizing: border-box;
+    font-family: 'Space Grotesk', sans-serif;
+}
+
+.save-button:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 30px rgba(139, 92, 246, 0.6);
+}
+
+/* Journey Tab */
+.journey-content {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.journey-stat {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 20px;
+    background: rgba(139, 92, 246, 0.1);
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    border-radius: 15px;
+    transition: all 0.3s ease;
+}
+
+.journey-stat:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+    border-color: rgba(139, 92, 246, 0.5);
+}
+
+.journey-icon {
+    font-size: 2.5rem;
+}
+
+.journey-info {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.journey-label {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.6);
+    text-transform: uppercase;
+    font-family: 'Space Grotesk', sans-serif;
+    letter-spacing: 0.15em;
+}
+
+.journey-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #C4B5FD;
+}
+
+.milestone-card {
+    grid-column: 1 / -1;
+    padding: 30px;
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(167, 139, 250, 0.15) 100%);
+    border: 2px solid rgba(139, 92, 246, 0.4);
+    border-radius: 15px;
+    text-align: center;
+}
+
+.milestone-title {
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.6);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    font-family: 'Space Grotesk', sans-serif;
+    letter-spacing: 0.15em;
+}
+
+.milestone-name {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #C4B5FD;
+    margin-bottom: 5px;
+    font-family: 'Space Grotesk', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+.milestone-level {
+    font-size: 1rem;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+/* Statistics Tab */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.stat-card {
+    padding: 25px;
+    background: rgba(139, 92, 246, 0.1);
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    border-radius: 15px;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+}
+
+.stat-icon {
+    font-size: 2.5rem;
+    margin-bottom: 10px;
+}
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #C4B5FD;
+    margin-bottom: 5px;
+}
+
+.stat-label {
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.6);
+    text-transform: uppercase;
+    font-family: 'Space Grotesk', sans-serif;
+    letter-spacing: 0.15em;
+}
+
+.stats-note {
+    text-align: center;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.9rem;
+    font-style: italic;
+    padding: 20px;
+    background: rgba(20, 20, 35, 0.5);
+    border-radius: 10px;
+}
+
+/* Achievements Tab */
+.achievements-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 15px;
+}
+
+.achievement-badge {
+    padding: 20px;
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(167, 139, 250, 0.15) 100%);
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    border-radius: 12px;
+    text-align: center;
+    font-size: 0.9rem;
+    color: #C4B5FD;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    font-family: 'Space Grotesk', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+.achievement-badge:hover {
+    transform: translateY(-5px) scale(1.05);
+    box-shadow: 0 10px 30px rgba(139, 92, 246, 0.4);
+    border-color: rgba(139, 92, 246, 0.5);
+}
+
+.no-achievements {
+    text-align: center;
+    padding: 60px 20px;
+}
+
+.no-achievements-icon {
+    font-size: 4rem;
+    margin-bottom: 20px;
+    opacity: 0.5;
+}
+
+.no-achievements-text {
+    font-size: 1.2rem;
+    color: rgba(255, 255, 255, 0.6);
+    margin-bottom: 10px;
+    font-family: 'Space Grotesk', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+}
+
+.no-achievements-hint {
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.4);
+    font-style: italic;
+    font-family: 'Space Grotesk', sans-serif;
+}
+
+/* Journal tab – circular progress (Today / This week / This month) */
+.profile-journal-stats {
+    display: flex;
+    gap: 24px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+}
+
+.profile-journal-stat-circle {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.profile-journal-stat-ring {
+    --pct: 0;
+    position: relative;
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: conic-gradient(
+        #22c55e 0deg,
+        #8B5CF6 calc(var(--pct) * 3.6deg),
+        rgba(255, 255, 255, 0.08) calc(var(--pct) * 3.6deg)
+    );
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.profile-journal-stat-ring::before {
+    content: '';
+    position: absolute;
+    inset: 4px;
+    border-radius: 50%;
+    background: linear-gradient(145deg, rgba(22, 22, 38, 0.98) 0%, rgba(30, 30, 46, 0.95) 100%);
+    border: 1px solid rgba(139, 92, 246, 0.2);
+}
+
+.profile-journal-stat-value {
+    position: relative;
+    z-index: 1;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #fff;
+}
+
+.profile-journal-stat-label {
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.6);
+    text-align: center;
+    font-family: 'Space Grotesk', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+.profile-journal-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 40px;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.profile-journal-hint {
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.5);
+    margin: 0;
+    text-align: center;
+    font-family: 'Space Grotesk', sans-serif;
+}
+
+.status-msg {
+    text-align: center;
+    margin-top: 20px;
+    padding: 15px;
+    border-radius: 10px;
+    background: rgba(34, 197, 94, 0.15);
+    border: 1px solid rgba(34, 197, 94, 0.3);
+    color: #4ADE80;
+    font-weight: 600;
+    font-family: 'Space Grotesk', sans-serif;
+}
+
+/* Responsive Design - keep everything inside the box on iPhone */
+@media (max-width: 768px) {
+    .profile-container {
+        padding-top: 100px;
+        padding-right: max(15px, env(safe-area-inset-right));
+        padding-bottom: 20px;
+        padding-left: max(15px, env(safe-area-inset-left));
+    }
+    
+    .profile-banner-container {
+        height: 200px;
+        margin-bottom: -60px;
+    }
+    
+    .profile-header-section {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        padding: 80px max(20px, env(safe-area-inset-right)) 30px max(20px, env(safe-area-inset-left));
+    }
+    
+    .profile-username {
+        font-size: 1.8rem;
+    }
+    
+    .profile-level-section {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 20px;
+    }
+    
+    .next-milestone {
+        margin-left: 0;
+        text-align: left;
+    }
+    
+    .profile-tabs {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .profile-tab-content {
+        padding: 20px max(16px, env(safe-area-inset-right)) 20px max(16px, env(safe-area-inset-left));
+    }
+    
+    .journey-content,
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Phones only: more top padding so top of profile is visible, smaller avatar, keep content in box */
+@media (max-width: 480px) {
+    .profile-banner-container {
+        height: 150px;
+        margin-bottom: -50px;
+    }
+
+    .profile-container {
+        padding-top: 100px;
+        padding-left: max(12px, env(safe-area-inset-left));
+        padding-right: max(12px, env(safe-area-inset-right));
+    }
+    
+    .profile-avatar-wrapper {
+        width: 96px;
+        height: 96px;
+        border-width: 3px;
+    }
+    
+    .avatar-upload-btn {
+        width: 32px;
+        height: 32px;
+        font-size: 1rem;
+    }
+    
+    .profile-username {
+        font-size: 1.5rem;
+    }
+    
+    .level-value {
+        font-size: 2.5rem;
+    }
+    
+    .xp-value {
+        font-size: 1.5rem;
+    }
+    
+    .profile-tab-content {
+        padding-left: max(12px, env(safe-area-inset-left));
+        padding-right: max(12px, env(safe-area-inset-right));
+    }
+    
+    .save-button {
+        max-width: 100%;
+    }
+    
+    .achievements-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* iPhone / phones: same as Journal – explicit 100vh, .profile-container is the scroll container */
+@media (max-width: 767px) {
+    .profile-container {
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        height: 100vh !important;
+        height: 100dvh !important;
+        max-height: 100vh !important;
+        max-height: 100dvh !important;
+        -webkit-overflow-scrolling: touch !important;
+        touch-action: pan-y;
+    }
+}
+
+/* iPad and other tablets: same as Journal – one scroll container, fills viewport */
+@media (min-width: 768px) and (max-width: 1366px) {
+    .profile-container {
+        height: 100vh !important;
+        height: 100dvh !important;
+        max-height: 100vh !important;
+        max-height: 100dvh !important;
+        min-height: 0 !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        -webkit-overflow-scrolling: touch !important;
+        touch-action: pan-y;
+    }
+}

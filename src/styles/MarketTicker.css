@@ -1,0 +1,705 @@
+/**
+ * MarketTicker CSS - Compact TradingView-style ticker
+ * 
+ * Visual requirements:
+ * - Slim, dense tiles with minimal padding
+ * - Continuous horizontal flow, no large gaps
+ * - Proper vertical alignment
+ * - Green/red flash on tick
+ * - Smooth auto-scrolling
+ */
+
+/* ============================================================================
+   Wrapper
+   ============================================================================ */
+
+.market-ticker-wrapper {
+  position: relative;
+  width: 100%;
+  margin: 12px 0;
+}
+
+.market-ticker-wrapper.stale {
+  opacity: 0.85;
+}
+
+.market-ticker-wrapper.disconnected::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.08);
+  pointer-events: none;
+  border-radius: 8px;
+}
+
+/* ============================================================================
+   Status Indicator
+   ============================================================================ */
+
+.ticker-status {
+  position: absolute;
+  top: -22px;
+  right: 0;
+  font-size: 0.65rem;
+  padding: 2px 8px;
+  border-radius: 3px;
+  z-index: 10;
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+.ticker-status.stale {
+  background: rgba(245, 158, 11, 0.15);
+  color: #F59E0B;
+  border: 1px solid rgba(245, 158, 11, 0.25);
+}
+
+/* ============================================================================
+   Category Tabs - Compact
+   ============================================================================ */
+
+.ticker-categories {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.ticker-categories::-webkit-scrollbar {
+  display: none;
+}
+
+.ticker-category {
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.6);
+  padding: 5px 12px;
+  border-radius: 14px;
+  font-size: 0.75rem;
+  font-family: 'Space Grotesk', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.ticker-category:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.ticker-category.active {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: white;
+}
+
+/* ============================================================================
+   Ticker Tape Container - COMPACT
+   ============================================================================ */
+
+.stock-ticker-compact {
+  width: 100%;
+  overflow: hidden;
+  background: linear-gradient(135deg, rgba(20, 12, 38, 0.8), rgba(30, 22, 48, 0.8));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  /* Compact height - just enough to fit tiles */
+  min-height: 48px;
+  padding: 8px 0;
+  display: flex;
+  align-items: center;
+  /* Allow horizontal scroll on ticker but don't block vertical page scroll */
+  touch-action: pan-x pan-y;
+}
+
+.ticker {
+  display: flex;
+  gap: 8px;
+  padding: 0 12px;
+  width: max-content;
+  align-items: center;
+  /* Allow horizontal panning but don't block vertical scroll */
+  touch-action: pan-x pan-y;
+}
+
+.ticker.auto-scroll {
+  animation: tickerScroll 45s linear infinite;
+}
+
+@keyframes tickerScroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.stock-ticker-compact:hover .ticker.auto-scroll {
+  animation-play-state: paused;
+}
+
+/* ============================================================================
+   Individual Ticker Item - SLIM & DENSE
+   ============================================================================ */
+
+.ticker-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  /* Minimal padding for compact look */
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 6px;
+  transition: all 0.25s ease;
+  white-space: nowrap;
+  /* Slim height */
+  height: 32px;
+  line-height: 1.2;
+}
+
+.ticker-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.ticker-item.loading {
+  opacity: 0.6;
+}
+
+.ticker-item.stale {
+  opacity: 0.75;
+}
+
+.ticker-item.delayed {
+  border: 1px dashed rgba(245, 158, 11, 0.25);
+}
+
+/* ============================================================================
+   Flash Animations - Subtle TradingView Style
+   ============================================================================ */
+
+.ticker-item.flash-green {
+  animation: flashGreen 0.5s ease;
+}
+
+.ticker-item.flash-red {
+  animation: flashRed 0.5s ease;
+}
+
+@keyframes flashGreen {
+  0%, 100% {
+    background: rgba(255, 255, 255, 0.04);
+  }
+  30% {
+    background: rgba(34, 197, 94, 0.25);
+  }
+}
+
+@keyframes flashRed {
+  0%, 100% {
+    background: rgba(255, 255, 255, 0.04);
+  }
+  30% {
+    background: rgba(239, 68, 68, 0.25);
+  }
+}
+
+/* ============================================================================
+   Symbol Name - Compact
+   ============================================================================ */
+
+.ticker-symbol {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.9);
+  min-width: 50px;
+}
+
+/* ============================================================================
+   Price Display - Compact
+   ============================================================================ */
+
+.ticker-price {
+  font-family: 'Space Grotesk', 'SF Mono', monospace;
+  font-weight: 600;
+  font-size: 0.85rem;
+  transition: color 0.2s ease;
+  min-width: 55px;
+  text-align: right;
+}
+
+.ticker-price.price-up {
+  color: #22c55e;
+}
+
+.ticker-price.price-down {
+  color: #ef4444;
+}
+
+.ticker-price.loading-price {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+/* Loading shimmer for prices */
+.price-loading {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.loading-dot {
+  animation: shimmerDot 1s ease-in-out infinite;
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 0.7rem;
+}
+
+.loading-dot:nth-child(2) { animation-delay: 0.15s; }
+.loading-dot:nth-child(3) { animation-delay: 0.3s; }
+
+@keyframes shimmerDot {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.8; }
+}
+
+/* ============================================================================
+   Change Percentage Badge - Compact
+   ============================================================================ */
+
+.ticker-change {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.7rem;
+  font-weight: 500;
+  padding: 2px 6px;
+  border-radius: 4px;
+  min-width: 58px;
+  text-align: center;
+  line-height: 1.2;
+}
+
+.ticker-change.ticker-up {
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+}
+
+.ticker-change.ticker-down {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.ticker-change.ticker-loading {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.ticker-delayed-badge {
+  font-size: 0.6rem;
+  margin-left: 3px;
+  opacity: 0.6;
+}
+
+/* ============================================================================
+   View All Markets Button - Compact
+   ============================================================================ */
+
+.view-all-markets-btn {
+  display: block;
+  margin: 10px auto 0;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.65);
+  padding: 6px 18px;
+  border-radius: 16px;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.view-all-markets-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: white;
+}
+
+/* ============================================================================
+   Modal Overlay
+   ============================================================================ */
+
+.market-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 16px;
+  animation: fadeIn 0.15s ease;
+  /* Allow scrolling inside modal, contain overscroll */
+  overscroll-behavior: contain;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ============================================================================
+   Modal Container - Compact Cards
+   ============================================================================ */
+
+.market-modal {
+  background: linear-gradient(145deg, rgba(22, 14, 40, 0.98), rgba(32, 24, 52, 0.98));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 800px;
+  max-height: 80vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: slideUp 0.2s ease;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+  /* Enable touch scrolling inside modal */
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  overscroll-behavior: contain;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.market-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+}
+
+.market-modal-header h2 {
+  margin: 0;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: white;
+}
+
+.modal-stale-badge {
+  font-size: 0.7rem;
+  padding: 3px 8px;
+  background: rgba(245, 158, 11, 0.12);
+  color: #F59E0B;
+  border-radius: 10px;
+  margin-left: 10px;
+}
+
+.market-modal-close {
+  background: rgba(255, 255, 255, 0.06);
+  border: none;
+  color: white;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-size: 1.3rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.market-modal-close:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.market-modal-content {
+  padding: 12px 16px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* ============================================================================
+   Market Groups in Modal - Ultra Compact Grid
+   ============================================================================ */
+
+.market-group {
+  margin-bottom: 14px;
+}
+
+.market-group:last-child {
+  margin-bottom: 0;
+}
+
+.market-group-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.market-group-icon {
+  font-size: 0.9rem;
+}
+
+.market-group-items {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 4px;
+}
+
+/* ============================================================================
+   Market Item in Modal - ULTRA COMPACT (just symbol + price)
+   ============================================================================ */
+
+.market-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 4px;
+  padding: 4px 8px;
+  transition: all 0.15s ease;
+  height: 28px;
+  min-height: 28px;
+  max-height: 28px;
+}
+
+.market-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.market-item.delayed {
+  opacity: 0.7;
+}
+
+.market-item.flash-green {
+  animation: flashGreen 0.4s ease;
+}
+
+.market-item.flash-red {
+  animation: flashRed 0.4s ease;
+}
+
+.market-item-info {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.market-item-symbol {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.market-item-delayed {
+  display: none;
+}
+
+.market-item-price {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.market-item-value {
+  font-family: 'Space Grotesk', 'SF Mono', monospace;
+  font-weight: 500;
+  font-size: 0.68rem;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.market-item-change {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.6rem;
+  font-weight: 500;
+  display: none;
+}
+
+.market-item-change.up {
+  color: #22c55e;
+}
+
+.market-item-change.down {
+  color: #ef4444;
+}
+
+.market-item-change.loading {
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 0.55rem;
+}
+
+/* ============================================================================
+   Responsive Styles
+   ============================================================================ */
+
+@media (max-width: 768px) {
+  .market-ticker-wrapper {
+    margin: 10px 0;
+  }
+  
+  .ticker-categories {
+    padding: 0 12px 4px;
+  }
+  
+  .ticker-category {
+    padding: 4px 10px;
+    font-size: 0.7rem;
+  }
+  
+  .stock-ticker-compact {
+    min-height: 44px;
+    padding: 6px 0;
+    border-radius: 8px;
+  }
+  
+  .ticker {
+    gap: 6px;
+    padding: 0 10px;
+  }
+  
+  .ticker-item {
+    gap: 6px;
+    padding: 5px 10px;
+    height: 28px;
+  }
+  
+  .ticker-symbol {
+    font-size: 0.75rem;
+    min-width: 42px;
+  }
+  
+  .ticker-price {
+    font-size: 0.8rem;
+    min-width: 48px;
+  }
+  
+  .ticker-change {
+    font-size: 0.65rem;
+    padding: 2px 5px;
+    min-width: 50px;
+  }
+  
+  .view-all-markets-btn {
+    padding: 5px 14px;
+    font-size: 0.72rem;
+  }
+  
+  .market-modal {
+    max-height: 85vh;
+    border-radius: 12px;
+  }
+  
+  .market-modal-header {
+    padding: 12px 16px;
+  }
+  
+  .market-modal-header h2 {
+    font-size: 1.1rem;
+  }
+  
+  .market-modal-content {
+    padding: 12px 16px;
+  }
+  
+  .market-group-items {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 3px;
+  }
+  
+  .market-item {
+    padding: 3px 6px;
+    height: 24px;
+    min-height: 24px;
+  }
+  
+  .market-item-symbol {
+    font-size: 0.65rem;
+  }
+  
+  .market-item-value {
+    font-size: 0.6rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .ticker.auto-scroll {
+    animation-duration: 30s;
+  }
+  
+  .stock-ticker-compact {
+    min-height: 40px;
+    padding: 5px 0;
+  }
+  
+  .ticker-item {
+    gap: 5px;
+    padding: 4px 8px;
+    height: 26px;
+  }
+  
+  .ticker-symbol {
+    font-size: 0.7rem;
+    min-width: 38px;
+  }
+  
+  .ticker-price {
+    font-size: 0.75rem;
+    min-width: 42px;
+  }
+  
+  .ticker-change {
+    font-size: 0.6rem;
+    padding: 1px 4px;
+    min-width: 44px;
+  }
+  
+  .market-modal-header h2 {
+    font-size: 1rem;
+  }
+  
+  .modal-stale-badge {
+    display: none;
+  }
+  
+  .market-group-items {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  
+  .market-item {
+    padding: 2px 5px;
+    height: 22px;
+    min-height: 22px;
+  }
+  
+  .market-item-symbol {
+    font-size: 0.6rem;
+  }
+  
+  .market-item-value {
+    font-size: 0.55rem;
+  }
+  
+  .market-item-change {
+    display: none;
+  }
+}

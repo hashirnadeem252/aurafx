@@ -1,0 +1,996 @@
+import React, { useEffect, useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
+import {
+    getRankTitle,
+    getTierName,
+    getTierColor,
+    getXPProgress,
+    getNextRankMilestone,
+    getLevelFromXP,
+    getXPForNextLevel
+} from '../utils/xpSystem';
+import { 
+    FaTimes, FaCog, FaUserPlus, FaUser, FaCrown, FaCheckCircle, FaFire, 
+    FaGem, FaStar, FaTrophy, FaChartLine, FaClock, FaShieldAlt, FaRobot,
+    FaLock, FaUnlock, FaUserCheck, FaUserTimes, FaHourglass, FaComments,
+    FaGraduationCap, FaCalendarCheck, FaBolt, FaMedal, FaAward
+} from 'react-icons/fa';
+import { toast } from 'react-toastify';
+import { resolveAvatarUrl, getPlaceholderColor } from '../utils/avatar';
+import '../styles/ProfileModal.css';
+
+// Get or create portal root for modals
+const getModalRoot = () => {
+    let modalRoot = document.getElementById('profile-modal-root');
+    if (!modalRoot) {
+        modalRoot = document.createElement('div');
+        modalRoot.id = 'profile-modal-root';
+        modalRoot.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 99999; pointer-events: none;';
+        document.body.appendChild(modalRoot);
+    }
+    return modalRoot;
+};
+
+/**
+ * Avatar: show profile picture when available; tier border + online indicator.
+ */
+const AvatarWithFallback = ({ size = 130, tierColor, isOnline, avatar, userId }) => {
+    const avatarSrc = resolveAvatarUrl(avatar, typeof window !== 'undefined' ? window.location?.origin : '');
+    const placeholderColor = getPlaceholderColor(userId);
+    return (
+        <div style={{
+            position: 'relative',
+            width: `${size}px`,
+            height: `${size}px`,
+            flexShrink: 0
+        }}>
+            <div
+                style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: '100%',
+                    borderRadius: '50%',
+                    background: avatarSrc ? 'transparent' : placeholderColor,
+                    border: `5px solid ${tierColor}`,
+                    boxShadow: `0 10px 40px rgba(0, 0, 0, 0.5), 0 0 20px ${tierColor}40`,
+                    boxSizing: 'border-box',
+                    overflow: 'hidden'
+                }}
+            >
+                {avatarSrc ? (
+                    <img src={avatarSrc} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} loading="lazy" />
+                ) : (
+                    <div aria-hidden style={{ width: '100%', height: '100%', borderRadius: '50%', background: placeholderColor }} />
+                )}
+            </div>
+            <div style={{
+                position: 'absolute',
+                bottom: `${size * 0.06}px`,
+                right: `${size * 0.06}px`,
+                width: `${size * 0.22}px`,
+                height: `${size * 0.22}px`,
+                borderRadius: '50%',
+                background: isOnline ? '#23A55A' : '#72767D',
+                border: '4px solid rgba(30, 30, 46, 0.95)',
+                boxShadow: isOnline ? '0 0 12px #23A55A' : 'none',
+                zIndex: 5
+            }} />
+        </div>
+    );
+};
+
+// All possible achievements with unlock conditions
+const ALL_ACHIEVEMENTS = [
+    { id: 'first_steps', name: 'First Steps', icon: '🔰', description: 'Reach Level 5', unlockLevel: 5 },
+    { id: 'communicator', name: 'Active Communicator', icon: '💬', description: 'Reach Level 10', unlockLevel: 10 },
+    { id: 'dedicated', name: 'Dedicated Trader', icon: '📈', description: 'Reach Level 15', unlockLevel: 15 },
+    { id: 'rising_star', name: 'Rising Star', icon: '⭐', description: 'Reach Level 20', unlockLevel: 20 },
+    { id: 'level_25', name: 'Level 25 Club', icon: '🔥', description: 'Reach Level 25', unlockLevel: 25 },
+    { id: 'half_century', name: 'Half Century', icon: '🎯', description: 'Reach Level 50', unlockLevel: 50 },
+    { id: 'veteran', name: 'Veteran Status', icon: '👑', description: 'Reach Level 75', unlockLevel: 75 },
+    { id: 'legend', name: 'Infinity Legend', icon: '💎', description: 'Reach Level 100', unlockLevel: 100 },
+    { id: 'streak_7', name: 'Week Warrior', icon: '🗓️', description: '7 day login streak', unlockStreak: 7 },
+    { id: 'streak_30', name: 'Monthly Master', icon: '📅', description: '30 day login streak', unlockStreak: 30 },
+    { id: 'ai_user', name: 'AI Explorer', icon: '🤖', description: 'Use AI Chat 10 times', unlockAiChats: 10 },
+    { id: 'social', name: 'Social Butterfly', icon: '🦋', description: 'Send 100 messages', unlockMessages: 100 }
+];
+
+const ProfileModal = ({ isOpen, onClose, userId, userData, onViewProfile, currentUserId }) => {
+    const [profile, setProfile] = useState(userData || null);
+    const [loading, setLoading] = useState(!userData);
+    const [activeTab, setActiveTab] = useState('overview');
+    const [isOnline, setIsOnline] = useState(false);
+    const [lastSeen, setLastSeen] = useState(null);
+    const [settings, setSettings] = useState(null);
+    const [stats, setStats] = useState(null);
+    const [friendStatus, setFriendStatus] = useState('none');
+    const [friendRequestId, setFriendRequestId] = useState(null);
+    const [friendLoading, setFriendLoading] = useState(false);
+    const [showSettings, setShowSettings] = useState(false);
+    const [settingsLoading, setSettingsLoading] = useState(false);
+    const [xpAnimated, setXpAnimated] = useState(0);
+
+    // Get stored user for current user check
+    const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+    const isOwnProfile = userId === storedUser.id || userId === currentUserId;
+    const token = localStorage.getItem('token');
+
+    // Skip API for system/bot user (avoids 400 on /api/users/public-profile/system)
+    const isSystemUser = userId && String(userId).toLowerCase() === 'system';
+
+    // Fetch profile data
+    const fetchProfile = useCallback(async () => {
+        if (!userId || isSystemUser) return;
+        try {
+            setLoading(true);
+            const baseUrl = window.location.origin;
+            const response = await fetch(`${baseUrl}/api/users/public-profile/${userId}`);
+            
+            if (response.ok) {
+                const data = await response.json();
+                setProfile(data);
+                
+                if (data.last_seen) {
+                    const lastSeenDate = new Date(data.last_seen);
+                    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+                    setIsOnline(lastSeenDate >= fiveMinutesAgo);
+                    setLastSeen(lastSeenDate);
+                }
+            }
+        } catch (err) {
+            console.error("Error fetching profile:", err);
+        } finally {
+            setLoading(false);
+        }
+    }, [userId, isSystemUser]);
+
+    // Fetch settings and stats (for own profile)
+    const fetchSettings = useCallback(async () => {
+        if (!isOwnProfile) return;
+        
+        // Default settings
+        const defaultSettings = {
+            preferred_markets: ['forex', 'gold'],
+            trading_sessions: ['london', 'newyork'],
+            risk_profile: 'moderate',
+            show_online_status: true,
+            show_trading_stats: true,
+            show_achievements: true
+        };
+        
+        // Load from localStorage first
+        try {
+            const stored = JSON.parse(localStorage.getItem('user_settings') || '{}');
+            if (Object.keys(stored).length > 0) {
+                setSettings({ ...defaultSettings, ...stored });
+            } else {
+                setSettings(defaultSettings);
+            }
+        } catch (e) {
+            setSettings(defaultSettings);
+        }
+        
+        // Then try to fetch from API
+        if (!token) return;
+        
+        try {
+            const response = await fetch(`${window.location.origin}/api/users/settings`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                if (data.settings) {
+                    setSettings(prev => ({ ...prev, ...data.settings }));
+                    // Save to localStorage
+                    try {
+                        localStorage.setItem('user_settings', JSON.stringify(data.settings));
+                    } catch (e) {}
+                }
+                if (data.stats) {
+                    setStats(data.stats);
+                }
+            }
+        } catch (err) {
+            console.error("Error fetching settings:", err);
+            // Keep localStorage settings
+        }
+    }, [isOwnProfile, token]);
+
+    // Check friend status (uses api/friends for notification support)
+    const checkFriendStatus = useCallback(async () => {
+        if (isOwnProfile || !token || !userId || isSystemUser) return;
+        try {
+            const response = await fetch(`${window.location.origin}/api/friends/status/${userId}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                const s = (data.status || 'NONE').toLowerCase();
+                setFriendStatus(s === 'friends' ? 'accepted' : s);
+                setFriendRequestId(data.requestId || null);
+            } else {
+                setFriendStatus('none');
+                setFriendRequestId(null);
+            }
+        } catch (err) {
+            console.error("Error checking friend status:", err);
+            setFriendStatus('none');
+            setFriendRequestId(null);
+        }
+    }, [isOwnProfile, token, userId, isSystemUser]);
+
+    // Initialize
+    useEffect(() => {
+        if (isOpen && userId) {
+            if (isSystemUser) {
+                setProfile(userData || { username: 'AURA FX', id: 'system' });
+                setLoading(false);
+                return;
+            }
+            if (!userData) fetchProfile();
+            else {
+                setProfile(userData);
+                if (userData.last_seen) {
+                    const lastSeenDate = new Date(userData.last_seen);
+                    setIsOnline(lastSeenDate >= new Date(Date.now() - 5 * 60 * 1000));
+                    setLastSeen(lastSeenDate);
+                }
+                setLoading(false);
+            }
+            fetchSettings();
+            checkFriendStatus();
+        }
+    }, [isOpen, userId, userData, isSystemUser, fetchProfile, fetchSettings, checkFriendStatus]);
+
+    // Animate XP bar
+    useEffect(() => {
+        if (profile && isOpen) {
+            const xpProgress = getXPProgress(profile.xp || 0, profile.level || 1);
+            setXpAnimated(0);
+            const timer = setTimeout(() => setXpAnimated(xpProgress.percentage), 100);
+            return () => clearTimeout(timer);
+        }
+    }, [profile, isOpen]);
+
+    if (!isOpen) return null;
+
+    // Friend action handlers (uses api/friends - creates notifications for recipient)
+    const handleFriendAction = async (action) => {
+        if (!token) {
+            toast.error('Please log in to manage friends');
+            return;
+        }
+        
+        setFriendLoading(true);
+        try {
+            let endpoint = '';
+            let method = 'POST';
+            let body = {};
+            
+            switch (action) {
+                case 'add':
+                    endpoint = '/api/friends/request';
+                    body = { receiverUserId: userId };
+                    break;
+                case 'accept':
+                    endpoint = '/api/friends/accept';
+                    body = { requestId: friendRequestId };
+                    break;
+                case 'reject':
+                    endpoint = '/api/friends/decline';
+                    body = { requestId: friendRequestId };
+                    break;
+                case 'remove':
+                    endpoint = '/api/friends/remove';
+                    method = 'DELETE';
+                    body = { friendUserId: userId };
+                    break;
+                default:
+                    return;
+            }
+
+            const response = await fetch(`${window.location.origin}${endpoint}`, {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: method !== 'DELETE' ? JSON.stringify(body) : JSON.stringify(body)
+            });
+
+            const data = await response.json();
+            
+            if (data.success) {
+                const s = (data.status || 'none').toLowerCase();
+                setFriendStatus(s === 'friends' ? 'accepted' : s);
+                setFriendRequestId(data.request?.id || data.requestId || null);
+                toast.success(data.message);
+                checkFriendStatus();
+            } else {
+                toast.error(data.message || 'Action failed');
+            }
+        } catch (err) {
+            toast.error('Failed to complete action');
+        } finally {
+            setFriendLoading(false);
+        }
+    };
+
+    // Settings update handler
+    const handleSettingsUpdate = async (updates) => {
+        // Optimistic update - update UI immediately
+        setSettings(prev => ({ ...prev, ...updates }));
+        
+        // Save to localStorage as fallback
+        try {
+            const stored = JSON.parse(localStorage.getItem('user_settings') || '{}');
+            localStorage.setItem('user_settings', JSON.stringify({ ...stored, ...updates }));
+        } catch (e) {}
+        
+        if (!token) {
+            toast.success('Settings saved locally');
+            return;
+        }
+        
+        setSettingsLoading(true);
+        try {
+            const response = await fetch(`${window.location.origin}/api/users/settings`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(updates)
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    toast.success('Settings saved');
+                }
+            } else {
+                // Still show success since we saved locally
+                toast.success('Settings saved locally');
+            }
+        } catch (err) {
+            // Still show success since we saved locally
+            toast.success('Settings saved locally');
+        } finally {
+            setSettingsLoading(false);
+        }
+    };
+
+    // Get friend button config
+    const getFriendButton = () => {
+        switch (friendStatus) {
+            case 'accepted':
+                return { icon: <FaUserCheck />, text: 'Friends', color: '#23A55A', action: 'remove' };
+            case 'pending_sent':
+                return { icon: <FaHourglass />, text: 'Pending', color: '#F0B232', action: null };
+            case 'pending_received':
+                return { icon: <FaUserPlus />, text: 'Accept', color: '#5865F2', action: 'accept' };
+            default:
+                return { icon: <FaUserPlus />, text: 'Add Friend', color: '#23A55A', action: 'add' };
+        }
+    };
+
+    const friendBtn = getFriendButton();
+
+    // Helper functions
+    const formatLastSeen = (date) => {
+        if (!date) return 'Never';
+        const diffMs = Date.now() - date;
+        const diffMins = Math.floor(diffMs / 60000);
+        if (diffMins < 1) return 'just now';
+        if (diffMins < 60) return `${diffMins}m ago`;
+        if (diffMins < 1440) return `${Math.floor(diffMins / 60)}h ago`;
+        return `${Math.floor(diffMins / 1440)}d ago`;
+    };
+
+    // Level-based banner gradient
+    const getBannerGradient = (level) => {
+        if (level >= 100) return 'linear-gradient(135deg, #FFD700 0%, #FFA500 30%, #FF6B35 60%, #E91E63 100%)';
+        if (level >= 75) return 'linear-gradient(135deg, #00D4FF 0%, #5865F2 50%, #9B59B6 100%)';
+        if (level >= 50) return 'linear-gradient(135deg, #9B59B6 0%, #8B5CF6 50%, #A78BFA 100%)';
+        if (level >= 25) return 'linear-gradient(135deg, #00B894 0%, #00CEC9 50%, #81ECEC 100%)';
+        if (level >= 10) return 'linear-gradient(135deg, #6C5CE7 0%, #A29BFE 100%)';
+        return 'linear-gradient(135deg, rgba(139, 92, 246, 0.4) 0%, rgba(167, 139, 250, 0.3) 100%)';
+    };
+
+    // Get unlocked achievements
+    const getAchievements = (level, streak = 0, aiChats = 0, messages = 0) => {
+        return ALL_ACHIEVEMENTS.map(a => ({
+            ...a,
+            unlocked: (a.unlockLevel && level >= a.unlockLevel) ||
+                      (a.unlockStreak && streak >= a.unlockStreak) ||
+                      (a.unlockAiChats && aiChats >= a.unlockAiChats) ||
+                      (a.unlockMessages && messages >= a.unlockMessages)
+        }));
+    };
+
+    if (loading || !profile) {
+        return createPortal(
+            <div className="profile-modal-overlay" style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'rgba(0, 0, 0, 0.9)',
+                backdropFilter: 'blur(10px)',
+                zIndex: 99999,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '20px',
+                pointerEvents: 'auto'
+            }} onClick={onClose}>
+                <div className="profile-modal-content" style={{
+                    background: 'linear-gradient(135deg, rgba(30, 30, 46, 0.98) 0%, rgba(20, 20, 35, 0.99) 100%)',
+                    borderRadius: '20px',
+                    padding: '40px',
+                    maxWidth: '400px',
+                    width: '100%',
+                    textAlign: 'center',
+                    boxShadow: '0 25px 80px rgba(0, 0, 0, 0.7)'
+                }} onClick={(e) => e.stopPropagation()}>
+                    <div className="loading-spinner"></div>
+                    <div className="loading-text">Loading profile...</div>
+                </div>
+            </div>,
+            getModalRoot()
+        );
+    }
+
+    const level = profile.level || 1;
+    const xp = profile.xp || 0;
+    const xpProgress = getXPProgress(xp, level);
+    const rankTitle = getRankTitle(level);
+    const tierName = getTierName(level);
+    const tierColor = getTierColor(level);
+    const nextMilestone = getNextRankMilestone(level);
+    const loginStreak = profile.login_streak || 0;
+    const xpForNext = getXPForNextLevel(level);
+    const achievements = getAchievements(level, loginStreak, stats?.ai_chats_count || 0, stats?.community_messages || 0);
+    const unlockedCount = achievements.filter(a => a.unlocked).length;
+
+    // Settings Modal
+    const SettingsModal = () => (
+        <div style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.9)', zIndex: 10001, display: 'flex',
+            alignItems: 'center', justifyContent: 'center', padding: '20px'
+        }} onClick={() => setShowSettings(false)}>
+            <div style={{
+                background: 'linear-gradient(135deg, rgba(30, 30, 46, 0.98) 0%, rgba(20, 20, 35, 0.99) 100%)',
+                borderRadius: '20px', maxWidth: '600px', width: '100%', maxHeight: '80vh',
+                overflow: 'auto', padding: '30px', border: '1px solid rgba(139, 92, 246, 0.3)'
+            }} onClick={(e) => e.stopPropagation()}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
+                    <h2 style={{ color: 'white', margin: 0, fontSize: '1.5rem' }}>⚙️ Settings</h2>
+                    <button onClick={() => setShowSettings(false)} style={{
+                        background: 'rgba(255,0,0,0.2)', border: 'none', color: 'white',
+                        width: '36px', height: '36px', borderRadius: '50%', cursor: 'pointer'
+                    }}><FaTimes /></button>
+                </div>
+
+                {/* Trading Identity */}
+                <div style={{ marginBottom: '30px' }}>
+                    <h3 style={{ color: '#C4B5FD', fontSize: '1rem', marginBottom: '15px', textTransform: 'none' }}>
+                        <FaChartLine style={{ marginRight: '8px' }} />Trading Identity
+                    </h3>
+                    
+                    <div style={{ display: 'grid', gap: '15px' }}>
+                        <div>
+                            <label style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.85rem', display: 'block', marginBottom: '8px' }}>
+                                Preferred Markets
+                            </label>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                                {['forex', 'gold', 'crypto', 'indices', 'stocks', 'oil'].map(market => (
+                                    <button key={market} onClick={() => {
+                                        const current = settings?.preferred_markets || [];
+                                        const updated = current.includes(market) 
+                                            ? current.filter(m => m !== market)
+                                            : [...current, market];
+                                        handleSettingsUpdate({ preferred_markets: updated });
+                                    }} style={{
+                                        padding: '8px 16px', borderRadius: '20px', cursor: 'pointer',
+                                        background: settings?.preferred_markets?.includes(market) ? tierColor : 'rgba(255,255,255,0.1)',
+                                        border: 'none', color: 'white', fontSize: '0.85rem', fontWeight: 600,
+                                        textTransform: 'capitalize', transition: 'all 0.2s'
+                                    }}>{market}</button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div>
+                            <label style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.85rem', display: 'block', marginBottom: '8px' }}>
+                                Trading Sessions
+                            </label>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                                {['asian', 'london', 'newyork', 'sydney'].map(session => (
+                                    <button key={session} onClick={() => {
+                                        const current = settings?.trading_sessions || [];
+                                        const updated = current.includes(session) 
+                                            ? current.filter(s => s !== session)
+                                            : [...current, session];
+                                        handleSettingsUpdate({ trading_sessions: updated });
+                                    }} style={{
+                                        padding: '8px 16px', borderRadius: '20px', cursor: 'pointer',
+                                        background: settings?.trading_sessions?.includes(session) ? '#5865F2' : 'rgba(255,255,255,0.1)',
+                                        border: 'none', color: 'white', fontSize: '0.85rem', fontWeight: 600,
+                                        textTransform: 'capitalize', transition: 'all 0.2s'
+                                    }}>{session}</button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div>
+                            <label style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.85rem', display: 'block', marginBottom: '8px' }}>
+                                Risk Profile
+                            </label>
+                            <select value={settings?.risk_profile || 'moderate'} onChange={(e) => 
+                                handleSettingsUpdate({ risk_profile: e.target.value })
+                            } style={{
+                                width: '100%', padding: '12px', borderRadius: '10px', cursor: 'pointer',
+                                background: 'rgba(20, 20, 35, 0.8)', border: '1px solid rgba(139, 92, 246, 0.3)',
+                                color: 'white', fontSize: '1rem'
+                            }}>
+                                <option value="conservative">🛡️ Conservative</option>
+                                <option value="moderate">⚖️ Moderate</option>
+                                <option value="aggressive">🔥 Aggressive</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Privacy Settings */}
+                <div style={{ marginBottom: '30px' }}>
+                    <h3 style={{ color: '#C4B5FD', fontSize: '1rem', marginBottom: '15px', textTransform: 'none' }}>
+                        <FaShieldAlt style={{ marginRight: '8px' }} />Privacy
+                    </h3>
+                    
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        {[
+                            { key: 'show_online_status', label: 'Show Online Status' },
+                            { key: 'show_trading_stats', label: 'Show Trading Stats' },
+                            { key: 'show_achievements', label: 'Show Achievements' }
+                        ].map(({ key, label }) => (
+                            <label key={key} style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}>
+                                <input type="checkbox" checked={settings?.[key] !== false}
+                                    onChange={(e) => handleSettingsUpdate({ [key]: e.target.checked })}
+                                    style={{ width: '20px', height: '20px', accentColor: tierColor }}
+                                />
+                                <span style={{ color: 'white', fontSize: '0.95rem' }}>{label}</span>
+                            </label>
+                        ))}
+                    </div>
+                </div>
+
+                {settingsLoading && (
+                    <div style={{ textAlign: 'center', padding: '10px', color: '#C4B5FD' }}>Saving...</div>
+                )}
+            </div>
+        </div>
+    );
+
+    // Modal content JSX
+    const modalContent = (
+        <div className="profile-modal-overlay" style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.92)',
+            backdropFilter: 'blur(12px)',
+            zIndex: 99999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px',
+            pointerEvents: 'auto',
+            overflowY: 'auto'
+        }} onClick={onClose}>
+            <div className="profile-modal-content" style={{
+                background: 'linear-gradient(135deg, rgba(30, 30, 46, 0.98) 0%, rgba(20, 20, 35, 0.99) 100%)',
+                borderRadius: '24px',
+                boxShadow: `0 25px 80px rgba(0, 0, 0, 0.7), 0 0 0 1px ${tierColor}40`,
+                maxWidth: '900px',
+                width: '100%',
+                maxHeight: '90vh',
+                overflowY: 'auto',
+                overflowX: 'hidden',
+                position: 'relative',
+                margin: 'auto'
+            }} onClick={(e) => e.stopPropagation()}>
+                
+                {/* Action Buttons - safe area aware on iPhone via CSS class */}
+                <div className="profile-modal-actions" style={{ position: 'absolute', top: '15px', right: '15px', display: 'flex', gap: '8px', zIndex: 10 }}>
+                    {isOwnProfile && (
+                        <button onClick={() => setShowSettings(true)} title="Settings" style={{
+                            background: 'rgba(0, 0, 0, 0.7)', border: '1px solid rgba(255, 255, 255, 0.2)',
+                            color: 'white', width: '40px', height: '40px', borderRadius: '50%', cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.3s'
+                        }}><FaCog /></button>
+                    )}
+                    
+                    {!isOwnProfile && (
+                        <button onClick={() => friendBtn.action && handleFriendAction(friendBtn.action)}
+                            disabled={friendLoading || !friendBtn.action} title={friendBtn.text} style={{
+                            background: `${friendBtn.color}40`, border: `1px solid ${friendBtn.color}`,
+                            color: 'white', padding: '8px 16px', borderRadius: '20px', cursor: friendBtn.action ? 'pointer' : 'default',
+                            display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', fontWeight: 600,
+                            opacity: friendLoading ? 0.6 : 1, transition: 'all 0.3s'
+                        }}>
+                            {friendLoading ? <span className="loading-spinner" style={{ width: '16px', height: '16px' }} /> : friendBtn.icon}
+                            {friendBtn.text}
+                        </button>
+                    )}
+                    
+                    <button onClick={onClose} title="Close" style={{
+                        background: 'rgba(0, 0, 0, 0.7)', border: '1px solid rgba(255, 255, 255, 0.2)',
+                        color: 'white', width: '40px', height: '40px', borderRadius: '50%', cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    }}><FaTimes /></button>
+                </div>
+
+                {/* Profile Header Section - Banner + Avatar */}
+                <div style={{
+                    position: 'relative', 
+                    width: '100%', 
+                    paddingBottom: '70px', /* Space for avatar overhang */
+                    marginBottom: '0'
+                }}>
+                    {/* Level-Based Banner - NO overflow:hidden to allow avatar to extend */}
+                    <div style={{
+                        position: 'relative', 
+                        width: '100%', 
+                        height: '180px',
+                        background: getBannerGradient(level),
+                        borderRadius: '24px 24px 0 0' /* Match modal corners */
+                    }}>
+                        {/* Animated particles effect for high levels */}
+                        {level >= 50 && (
+                            <div style={{
+                                position: 'absolute', inset: 0, 
+                                background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent)',
+                                animation: 'shimmer 3s infinite linear', opacity: 0.5,
+                                borderRadius: '24px 24px 0 0'
+                            }} />
+                        )}
+                        
+                        {/* Level indicator on banner */}
+                        <div style={{
+                            position: 'absolute', top: '15px', left: '15px', padding: '8px 16px',
+                            background: 'rgba(0,0,0,0.5)', borderRadius: '20px', backdropFilter: 'blur(10px)',
+                            display: 'flex', alignItems: 'center', gap: '8px', zIndex: 2
+                        }}>
+                            <span style={{ fontSize: '1.5rem' }}>
+                                {level >= 75 ? '👑' : level >= 50 ? '💎' : level >= 25 ? '🔥' : '⭐'}
+                            </span>
+                            <span style={{ color: 'white', fontWeight: 700, fontSize: '1.1rem' }}>Level {level}</span>
+                        </div>
+                    </div>
+
+                    {/* Avatar - Positioned outside banner to avoid clipping */}
+                    <div style={{ 
+                        position: 'absolute', 
+                        bottom: '0', 
+                        left: '40px', 
+                        zIndex: 10,
+                        width: '130px',
+                        height: '130px'
+                    }}>
+                        <AvatarWithFallback 
+                            size={130}
+                            tierColor={tierColor}
+                            isOnline={isOnline}
+                            avatar={profile?.avatar}
+                            userId={profile?.id ?? profile?.username}
+                        />
+                    </div>
+                </div>
+
+                {/* Profile Header */}
+                <div style={{ padding: '0 40px 16px', marginTop: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px', flexWrap: 'wrap' }}>
+                        <h1 style={{ fontSize: '2rem', fontWeight: 800, color: 'white', margin: 0 }}>
+                            {profile.username || profile.name || 'User'}
+                        </h1>
+                        {(profile.role === 'admin' || profile.role === 'super_admin') && <FaCrown style={{ color: '#FFD700', fontSize: '1.4rem' }} />}
+                        {profile.subscription_status === 'active' && <FaCheckCircle style={{ color: '#5865F2', fontSize: '1.2rem' }} />}
+                    </div>
+
+                    {/* Rank Banner */}
+                    <div style={{
+                        display: 'inline-flex', alignItems: 'center', gap: '12px', padding: '12px 20px',
+                        background: `linear-gradient(135deg, ${tierColor}30, ${tierColor}10)`,
+                        border: `2px solid ${tierColor}60`, borderRadius: '14px', marginBottom: '10px'
+                    }}>
+                        <div style={{
+                            width: '36px', height: '36px', borderRadius: '10px', background: tierColor,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            boxShadow: `0 4px 15px ${tierColor}50`
+                        }}>
+                            {level >= 75 ? <FaCrown style={{ color: 'white' }} /> :
+                             level >= 50 ? <FaGem style={{ color: 'white' }} /> :
+                             level >= 25 ? <FaTrophy style={{ color: 'white' }} /> : <FaStar style={{ color: 'white' }} />}
+                        </div>
+                        <div>
+                            <div style={{ fontSize: '1.15rem', fontWeight: 700, color: tierColor, letterSpacing: '1px' }}>{rankTitle}</div>
+                            <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', textTransform: 'none' }}>{tierName}</div>
+                        </div>
+                    </div>
+
+                    {/* Animated XP Progress Bar */}
+                    <div style={{ marginTop: '12px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                            <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.9rem', fontWeight: 600 }}>
+                                Level {level} → Level {level + 1}
+                            </span>
+                            <span style={{ color: tierColor, fontSize: '0.9rem', fontWeight: 700 }}>
+                                {(xpProgress.current || 0).toLocaleString()} / {(xpProgress.needed || 0).toLocaleString()} XP
+                            </span>
+                        </div>
+                        <div style={{
+                            width: '100%', height: '12px', background: 'rgba(30, 30, 46, 0.8)',
+                            borderRadius: '10px', overflow: 'hidden', position: 'relative'
+                        }}>
+                            <div style={{
+                                height: '100%', width: `${xpAnimated}%`,
+                                background: `linear-gradient(90deg, ${tierColor} 0%, ${tierColor}dd 50%, ${tierColor} 100%)`,
+                                borderRadius: '10px', transition: 'width 1.5s cubic-bezier(0.4, 0, 0.2, 1)',
+                                boxShadow: `0 0 20px ${tierColor}60`, position: 'relative'
+                            }}>
+                                {/* Shimmer effect */}
+                                <div style={{
+                                    position: 'absolute', inset: 0,
+                                    background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)',
+                                    animation: 'shimmer 2s infinite'
+                                }} />
+                            </div>
+                        </div>
+                        <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.8rem', marginTop: '6px', textAlign: 'right' }}>
+                            {((xpProgress.needed || 0) - (xpProgress.current || 0)).toLocaleString()} XP to next level
+                        </div>
+                    </div>
+                </div>
+
+                {/* Tabs */}
+                <div style={{ display: 'flex', gap: '4px', padding: '0 40px', borderBottom: '2px solid rgba(139, 92, 246, 0.2)', marginBottom: '16px', overflowX: 'auto' }}>
+                    {['overview', 'identity', 'statistics', 'achievements'].map(tab => (
+                        <button key={tab} onClick={() => setActiveTab(tab)} style={{
+                            background: 'transparent', border: 'none', padding: '12px 16px',
+                            color: activeTab === tab ? tierColor : 'rgba(255, 255, 255, 0.5)',
+                            fontSize: '0.9rem', fontWeight: 700, cursor: 'pointer', textTransform: 'none',
+                            letterSpacing: '0.5px', position: 'relative', whiteSpace: 'nowrap'
+                        }}>
+                            {tab === 'identity' ? 'Trading Identity' : tab}
+                            {activeTab === tab && (
+                                <div style={{
+                                    position: 'absolute', bottom: '-2px', left: 0, right: 0, height: '3px',
+                                    background: tierColor, borderRadius: '2px 2px 0 0'
+                                }} />
+                            )}
+                        </button>
+                    ))}
+                </div>
+
+                {/* Tab Content */}
+                <div style={{ padding: '0 40px 32px', minHeight: '220px' }}>
+                    {/* Overview Tab */}
+                    {activeTab === 'overview' && (
+                        <div style={{ display: 'grid', gap: '12px' }}>
+                            {/* Journal / Task stats (Today, This week, This month) when viewing another user */}
+                            {profile.journalStats && (profile.journalStats.todayPct != null || profile.journalStats.weekPct != null || profile.journalStats.monthPct != null) && (
+                                <div style={{ display: 'flex', justifyContent: 'center', gap: '24px', flexWrap: 'wrap', marginBottom: '8px' }}>
+                                    {[
+                                        { pct: profile.journalStats.todayPct, label: 'Today' },
+                                        { pct: profile.journalStats.weekPct, label: 'This week' },
+                                        { pct: profile.journalStats.monthPct, label: 'This month' }
+                                    ].map((item, i) => (
+                                        <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                                            <div style={{
+                                                width: 56, height: 56, borderRadius: '50%',
+                                                background: `conic-gradient(#8B5CF6 0deg, #22c55e ${(item.pct != null ? item.pct : 0) * 3.6}deg, rgba(255,255,255,0.08) ${(item.pct != null ? item.pct : 0) * 3.6}deg)`,
+                                                display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative'
+                                            }}>
+                                                <div style={{ position: 'absolute', inset: 3, borderRadius: '50%', background: 'linear-gradient(145deg, rgba(22,22,38,0.98), rgba(30,30,46,0.95))', border: '1px solid rgba(139,92,246,0.2)' }} />
+                                                <span style={{ position: 'relative', zIndex: 1, fontSize: '0.85rem', fontWeight: 700, color: '#fff' }}>
+                                                    {item.pct != null ? `${item.pct}%` : '—'}
+                                                </span>
+                                            </div>
+                                            <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.6)' }}>{item.label}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px' }}>
+                                {[
+                                    { icon: '⚡', label: 'Power Level', value: level, color: tierColor },
+                                    { icon: '✨', label: 'Total XP', value: xp.toLocaleString(), color: '#FFD700' },
+                                    { icon: '🔥', label: 'Discipline Streak', value: `${loginStreak} day${loginStreak !== 1 ? 's' : ''}`, color: '#FF6B35' },
+                                    { icon: '🎖️', label: 'Achievements', value: `${unlockedCount}/${ALL_ACHIEVEMENTS.length}`, color: '#5865F2' }
+                                ].map((stat, i) => (
+                                    <div key={i} style={{
+                                        padding: '14px 16px', background: 'rgba(139, 92, 246, 0.08)',
+                                        border: '1px solid rgba(139, 92, 246, 0.2)', borderRadius: '12px',
+                                        display: 'flex', alignItems: 'center', gap: '12px'
+                                    }}>
+                                        <span style={{ fontSize: '1.5rem' }}>{stat.icon}</span>
+                                        <div style={{ minWidth: 0 }}>
+                                            <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.5)', textTransform: 'none', letterSpacing: '0.3px' }}>{stat.label}</div>
+                                            <div style={{ fontSize: '1.2rem', fontWeight: 700, color: stat.color }}>{stat.value}</div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                            
+                            {/* Next Milestone */}
+                            {nextMilestone && (
+                                <div style={{
+                                    padding: '16px 20px', background: `linear-gradient(135deg, ${tierColor}12, ${tierColor}06)`,
+                                    border: `1px solid ${tierColor}40`, borderRadius: '12px', textAlign: 'center'
+                                }}>
+                                    <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.6)', marginBottom: '4px', textTransform: 'none', letterSpacing: '0.5px' }}>Next milestone</div>
+                                    <div style={{ fontSize: '1.35rem', fontWeight: 700, color: tierColor }}>{nextMilestone.title}</div>
+                                    <div style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.7)', marginTop: '4px' }}>
+                                        {nextMilestone.level - level} levels to go
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Trading Identity Tab */}
+                    {activeTab === 'identity' && (
+                        <div style={{ display: 'grid', gap: '25px' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
+                                <div style={{ padding: '25px', background: 'rgba(139, 92, 246, 0.08)', borderRadius: '16px', border: '1px solid rgba(139, 92, 246, 0.2)' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '15px' }}>
+                                        <FaChartLine style={{ color: tierColor, fontSize: '1.2rem' }} />
+                                        <span style={{ color: 'white', fontWeight: 700 }}>Preferred Markets</span>
+                                    </div>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                                        {(settings?.preferred_markets || ['forex', 'gold']).map((market, i) => (
+                                            <span key={i} style={{
+                                                padding: '6px 14px', background: tierColor, borderRadius: '15px',
+                                                color: 'white', fontSize: '0.85rem', fontWeight: 600, textTransform: 'capitalize'
+                                            }}>{market}</span>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div style={{ padding: '25px', background: 'rgba(139, 92, 246, 0.08)', borderRadius: '16px', border: '1px solid rgba(139, 92, 246, 0.2)' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '15px' }}>
+                                        <FaClock style={{ color: '#5865F2', fontSize: '1.2rem' }} />
+                                        <span style={{ color: 'white', fontWeight: 700 }}>Trading Sessions</span>
+                                    </div>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                                        {(settings?.trading_sessions || ['london', 'newyork']).map((session, i) => (
+                                            <span key={i} style={{
+                                                padding: '6px 14px', background: '#5865F2', borderRadius: '15px',
+                                                color: 'white', fontSize: '0.85rem', fontWeight: 600, textTransform: 'capitalize'
+                                            }}>{session}</span>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div style={{ padding: '25px', background: 'rgba(139, 92, 246, 0.08)', borderRadius: '16px', border: '1px solid rgba(139, 92, 246, 0.2)' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '15px' }}>
+                                        <FaShieldAlt style={{ color: '#00B894', fontSize: '1.2rem' }} />
+                                        <span style={{ color: 'white', fontWeight: 700 }}>Risk Profile</span>
+                                    </div>
+                                    <div style={{ fontSize: '1.3rem', fontWeight: 700, color: '#00B894', textTransform: 'capitalize' }}>
+                                        {settings?.risk_profile === 'conservative' ? '🛡️' : settings?.risk_profile === 'aggressive' ? '🔥' : '⚖️'} {settings?.risk_profile || 'Moderate'}
+                                    </div>
+                                </div>
+
+                                <div style={{ padding: '25px', background: 'rgba(139, 92, 246, 0.08)', borderRadius: '16px', border: '1px solid rgba(139, 92, 246, 0.2)' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '15px' }}>
+                                        <FaRobot style={{ color: '#FF6B35', fontSize: '1.2rem' }} />
+                                        <span style={{ color: 'white', fontWeight: 700 }}>AI Usage</span>
+                                    </div>
+                                    <div style={{ fontSize: '1.3rem', fontWeight: 700, color: '#FF6B35' }}>
+                                        {stats?.ai_chats_count || 0} Conversations
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Statistics Tab */}
+                    {activeTab === 'statistics' && (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '15px' }}>
+                            {[
+                                { icon: <FaRobot />, label: 'AI Chats', value: stats?.ai_chats_count || 0, color: '#FF6B35' },
+                                { icon: <FaComments />, label: 'Messages Sent', value: stats?.community_messages || 0, color: '#5865F2' },
+                                { icon: <FaGraduationCap />, label: 'Courses Done', value: stats?.courses_completed || 0, color: '#00B894' },
+                                { icon: <FaFire />, label: 'Longest Discipline Streak', value: `${stats?.longest_streak || loginStreak} days`, color: '#FF6B35' },
+                                { icon: <FaCalendarCheck />, label: 'Login Days', value: stats?.total_login_days || 0, color: '#9B59B6' },
+                                { icon: <FaBolt />, label: 'Monthly XP', value: (stats?.current_month_xp || xp).toLocaleString(), color: '#FFD700' }
+                            ].map((stat, i) => (
+                                <div key={i} style={{
+                                    padding: '25px', background: 'rgba(139, 92, 246, 0.08)',
+                                    border: '1px solid rgba(139, 92, 246, 0.2)', borderRadius: '16px', textAlign: 'center'
+                                }}>
+                                    <div style={{ fontSize: '2rem', marginBottom: '10px', color: stat.color }}>{stat.icon}</div>
+                                    <div style={{ fontSize: '1.8rem', fontWeight: 700, color: stat.color }}>{stat.value}</div>
+                                    <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', textTransform: 'none', marginTop: '5px' }}>{stat.label}</div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* Achievements Tab */}
+                    {activeTab === 'achievements' && (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '15px' }}>
+                            {achievements.map((achievement, i) => (
+                                <div key={i} title={achievement.description} style={{
+                                    padding: '20px', textAlign: 'center', borderRadius: '16px', cursor: 'pointer',
+                                    background: achievement.unlocked ? `linear-gradient(135deg, ${tierColor}20, ${tierColor}10)` : 'rgba(50,50,70,0.3)',
+                                    border: `1px solid ${achievement.unlocked ? tierColor + '50' : 'rgba(100,100,120,0.3)'}`,
+                                    opacity: achievement.unlocked ? 1 : 0.5, transition: 'all 0.3s',
+                                    transform: achievement.unlocked ? 'scale(1)' : 'scale(0.95)'
+                                }}>
+                                    <div style={{ fontSize: '2.5rem', marginBottom: '10px', filter: achievement.unlocked ? 'none' : 'grayscale(100%)' }}>
+                                        {achievement.unlocked ? achievement.icon : <FaLock style={{ color: 'rgba(255,255,255,0.3)' }} />}
+                                    </div>
+                                    <div style={{ fontSize: '0.9rem', fontWeight: 600, color: achievement.unlocked ? tierColor : 'rgba(255,255,255,0.4)' }}>
+                                        {achievement.name}
+                                    </div>
+                                    <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', marginTop: '5px' }}>
+                                        {achievement.description}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                {/* View Full Profile Button */}
+                {onViewProfile && (
+                    <div style={{ padding: '20px 40px 30px', borderTop: '1px solid rgba(139, 92, 246, 0.2)', display: 'flex', justifyContent: 'center' }}>
+                        <button onClick={onViewProfile} style={{
+                            display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 40px',
+                            background: `linear-gradient(135deg, ${tierColor} 0%, ${tierColor}cc 100%)`,
+                            border: 'none', borderRadius: '14px', color: 'white', fontSize: '1rem',
+                            fontWeight: 700, cursor: 'pointer', boxShadow: `0 8px 30px ${tierColor}50`,
+                            transition: 'all 0.3s', textTransform: 'none', letterSpacing: '1px'
+                        }}><FaUser /> View Full Profile</button>
+                    </div>
+                )}
+            </div>
+
+            {/* Settings Modal */}
+            {showSettings && <SettingsModal />}
+
+            <style>{`
+                @keyframes shimmer {
+                    0% { transform: translateX(-100%); }
+                    100% { transform: translateX(100%); }
+                }
+                @keyframes pulse {
+                    0%, 100% { opacity: 1; transform: scale(1); }
+                    50% { opacity: 0.7; transform: scale(1.1); }
+                }
+                
+                /* iPhone: position close/settings buttons below safe area */
+                @media (max-width: 480px) {
+                    .profile-modal-actions {
+                        top: max(15px, env(safe-area-inset-top, 15px)) !important;
+                        right: max(15px, env(safe-area-inset-right, 15px)) !important;
+                    }
+                }
+            `}</style>
+        </div>
+    );
+    
+    // Render via portal to escape any parent overflow:hidden
+    return createPortal(modalContent, getModalRoot());
+};
+
+export default ProfileModal;

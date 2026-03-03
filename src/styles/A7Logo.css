@@ -1,0 +1,40 @@
+/* A7 Logo Styling - Using image instead of CSS */
+.a7-logo-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.a7-logo-image {
+    display: block;
+    object-fit: contain;
+    filter: brightness(0) invert(1); /* Makes the logo white */
+}
+
+/* For navbar - larger size to match AURA FX text */
+.navbar-logo-wrapper .a7-logo-image {
+    width: 42px;
+    height: 42px;
+    align-self: flex-end; /* Align to bottom to match text baseline */
+    margin-bottom: 3px; /* Fine-tune alignment with text */
+}
+
+/* For home page - much larger size */
+.home-logo-section .a7-logo-image {
+    width: 180px;
+    height: 180px;
+}
+
+/* Adjust proportions for different sizes */
+@media (max-width: 768px) {
+    .navbar-logo-wrapper .a7-logo-image {
+        width: 36px;
+        height: 36px;
+    }
+    
+    .home-logo-section .a7-logo-image {
+        width: 140px;
+        height: 140px;
+    }
+}

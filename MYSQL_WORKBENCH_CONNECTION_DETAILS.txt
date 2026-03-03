@@ -1,0 +1,42 @@
+AURA FX - MySQL Workbench Connection Details
+=============================================
+
+From your Railway MySQL service, use these EXACT values:
+
+CONNECTION NAME: AURA FX Railway MySQL
+
+HOSTNAME: tramway.proxy.rlwy.net
+PORT: 49989
+USERNAME: root
+PASSWORD: FGcoKdqpUYWNb1nXzdGmBUACzeYDmewb
+   ⚠️ IMPORTANT: Copy the EXACT password from Railway "MYSQL_ROOT_PASSWORD" variable
+   ⚠️ Make sure there are no extra spaces or hidden characters
+DEFAULT SCHEMA: railway
+
+STEP-BY-STEP INSTRUCTIONS:
+==========================
+
+1. Open MySQL Workbench
+2. Click the "+" icon next to "MySQL Connections"
+3. Enter the connection details above
+4. Click "Store in Keychain" for the password
+5. Click "Test Connection" - should work!
+6. Click "OK" to save
+7. Double-click the connection to connect
+
+IMPORTANT NOTES:
+- Use the PUBLIC URL hostname (tramway.proxy.rlwy.net) for external connections
+- The port is 49989 (not the default 3306)
+- Default schema is "railway"
+- SSL IS REQUIRED - You MUST enable SSL in MySQL Workbench!
+
+CRITICAL: SSL CONFIGURATION REQUIRED
+====================================
+After entering the connection details above:
+1. Click on the "SSL" tab in the connection dialog
+2. Check "Use SSL" checkbox
+3. Set SSL Mode to "Require" or "Preferred"
+4. Leave SSL certificate files empty (Railway uses self-signed certs)
+
+If connection still fails, see MYSQL_WORKBENCH_SSL_SETUP.txt for detailed troubleshooting.
+

@@ -1,0 +1,48 @@
+AURA FX - MYSQL WORKBENCH CONNECTION SETUP:
+
+IMPORTANT: This is for the NEW AURA FX database, separate from "theglitches"
+
+1. Open MySQL Workbench
+2. Click "+" to create new connection
+3. Enter these EXACT details:
+
+Connection Name: AURA FX Railway MySQL
+Hostname: tramway.proxy.rlwy.net
+Port: 49989
+Username: root
+Password: FGcoKdqpUYWNb1nXzdGmBUACzeYDmewb
+Default Schema: railway
+
+4. Click "Store in Keychain" for the password
+5. Click "Test Connection" - should work!
+6. Click "OK" to save
+7. Double-click the connection to connect
+
+IMPORTANT NOTES:
+- Use the PUBLIC URL hostname (tramway.proxy.rlwy.net) for external connections
+- The port is 49989 (from MYSQL_PUBLIC_URL)
+- Default schema is "railway"
+- SSL will be handled automatically by MySQL Workbench
+
+TO IMPORT YOUR SQL FILES:
+1. Connect to AURA FX Railway MySQL
+2. Go to Server → Data Import
+3. Select "Import from Self-Contained File"
+4. Choose each SQL file
+5. Select target database (usually "railway")
+6. Click "Start Import"
+
+OR use the import script:
+Run: import_railway.bat
+Enter the values from Railway MySQL service variables
+
+VERCEL ENVIRONMENT VARIABLES NEEDED:
+After setting up Railway MySQL, add these to Vercel:
+- MYSQL_HOST=<from Railway>
+- MYSQL_PORT=<from Railway>
+- MYSQL_USER=<from Railway>
+- MYSQL_PASSWORD=<from Railway>
+- MYSQL_DATABASE=<from Railway>
+- MYSQL_SSL=true
+
+See RAILWAY_DATABASE_SETUP.md for detailed instructions.
