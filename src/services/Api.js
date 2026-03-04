@@ -4,15 +4,14 @@ import { savePostAuthRedirect } from '../utils/postAuthRedirect';
 // Define a fixed API base URL with proper fallback
 // Automatically detect the origin to avoid CORS issues with www redirects
 const getApiBaseUrl = () => {
-    if (typeof window !== 'undefined' && window.location?.origin) {
-        return window.location.origin;
+  if (typeof window !== "undefined") {
+    if (window.location.hostname === "localhost") {
+      return "https://www.auraxfx.com";
     }
+    return window.location.origin;
+  }
 
-    if (process.env.REACT_APP_API_URL) {
-        return process.env.REACT_APP_API_URL;
-    }
-    
-    return '';
+  return "https://www.auraxfx.com";
 };
 
 const API_BASE_URL = getApiBaseUrl();
